@@ -6,6 +6,7 @@ interface RegisterPersonaRoutesOptions {
   app: Express;
   db: DatabaseSync;
   nowMs: () => number;
+  runInTransaction: (fn: () => void) => void;
 }
 
 // Category values mirror the CHECK constraint on persona_profiles.category
@@ -84,7 +85,7 @@ function isHexColor(v: unknown): v is string {
   return typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v.trim());
 }
 
-export function registerPersonaRoutes({ app, db, nowMs }: RegisterPersonaRoutesOptions): void {
+export function registerPersonaRoutes({ app, db, nowMs, runInTransaction }: RegisterPersonaRoutesOptions): void {
   const readPersona = (id: string) =>
     db.prepare("SELECT * FROM persona_profiles WHERE id = ?").get(id) as Record<string, unknown> | undefined;
 
@@ -96,14 +97,14 @@ export function registerPersonaRoutes({ app, db, nowMs }: RegisterPersonaRoutesO
           .prepare("SELECT * FROM persona_profiles WHERE enabled = 1 AND category = ? ORDER BY sort_order, name")
           .all(category)
       : db.prepare("SELECT * FROM persona_profiles WHERE enabled = 1 ORDER BY sort_order, name").all();
-    res.json({ personas: rows });
+    res.json({ ok: true, personas: rows });
   });
 
   // ── Detail ──
   app.get("/api/personas/:id", (req: Request, res: Response) => {
     const row = readPersona(String(req.params.id ?? ""));
     if (!row) return res.status(404).json({ error: "persona_not_found" });
-    res.json({ persona: row });
+    res.json({ ok: true, persona: row });
   });
 
   // ── Create (custom) ──
@@ -235,16 +236,11 @@ export function registerPersonaRoutes({ app, db, nowMs }: RegisterPersonaRoutesO
       return res.status(409).json({ error: "preset_protected" });
     }
 
-    db.exec("BEGIN");
-    try {
+    runInTransaction(() => {
       // Delete integrity: agents using this persona fall back to 素 (NULL).
       db.prepare("UPDATE agents SET persona_profile_id = NULL WHERE persona_profile_id = ?").run(id);
       db.prepare("DELETE FROM persona_profiles WHERE id = ?").run(id);
-      db.exec("COMMIT");
-    } catch (err) {
-      db.exec("ROLLBACK");
-      throw err;
-    }
+    });
     res.json({ ok: true });
   });
 }

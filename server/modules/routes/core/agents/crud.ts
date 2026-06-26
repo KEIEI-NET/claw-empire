@@ -576,13 +576,15 @@ export function registerAgentCrudRoutes(ctx: RuntimeContext): void {
     }
 
     // Persona assignment validation/normalization.
+    // "base" (素) and empty are stored uniformly as NULL — matches the POST path
+    // and Phase 3 prompt injection treats NULL/'base' identically (no injection).
     if ("persona_profile_id" in body) {
       const v = body.persona_profile_id;
-      if (v === "" || v === null || typeof v === "undefined") {
+      if (v === "" || v === null || typeof v === "undefined" || v === "base") {
         body.persona_profile_id = null;
       } else if (typeof v !== "string") {
         return res.status(400).json({ error: "invalid_persona_profile_id" });
-      } else if (v !== "base") {
+      } else {
         const exists = db.prepare("SELECT 1 FROM persona_profiles WHERE id = ? AND enabled = 1").get(v);
         if (!exists) return res.status(400).json({ error: "persona_not_found" });
       }

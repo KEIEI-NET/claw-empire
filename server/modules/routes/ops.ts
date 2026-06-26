@@ -230,6 +230,7 @@ export function registerRoutesPartC(ctx: RuntimeContext): RouteOpsExports {
     app,
     db,
     nowMs,
+    runInTransaction: __ctx.runInTransaction,
   });
   registerWorkflowPackRoutes({
     app,
