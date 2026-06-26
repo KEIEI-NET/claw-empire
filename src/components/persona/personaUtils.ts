@@ -66,22 +66,22 @@ export const PERSONA_CATEGORY_ORDER: PersonaCategoryKey[] = [
   "general",
 ];
 
-const CATEGORY_LABELS: Record<PersonaCategoryKey, { ja: string; en: string; emoji: string }> = {
-  founder: { ja: "創業者・ビジョナリー", en: "Founders", emoji: "🚀" },
-  finance: { ja: "投資・ファイナンス", en: "Finance", emoji: "💰" },
-  marketing: { ja: "マーケター", en: "Marketing", emoji: "📣" },
-  programming: { ja: "プログラマー", en: "Programming", emoji: "💻" },
-  legal: { ja: "弁護士・法律家", en: "Legal", emoji: "⚖️" },
-  tax: { ja: "税務", en: "Tax", emoji: "🧾" },
-  accounting: { ja: "会計", en: "Accounting", emoji: "📊" },
-  management: { ja: "プロ経営者", en: "Management", emoji: "👔" },
-  design: { ja: "デザイナー", en: "Design", emoji: "🎨" },
-  general: { ja: "その他・自作", en: "Custom", emoji: "🎭" },
+const CATEGORY_LABELS: Record<PersonaCategoryKey, { ja: string; en: string; ko: string; zh: string; emoji: string }> = {
+  founder: { ja: "創業者・ビジョナリー", en: "Founders", ko: "창업자·비저너리", zh: "创始人·愿景家", emoji: "🚀" },
+  finance: { ja: "投資・ファイナンス", en: "Finance", ko: "투자·금융", zh: "投资·金融", emoji: "💰" },
+  marketing: { ja: "マーケター", en: "Marketing", ko: "마케터", zh: "营销", emoji: "📣" },
+  programming: { ja: "プログラマー", en: "Programming", ko: "프로그래머", zh: "程序员", emoji: "💻" },
+  legal: { ja: "弁護士・法律家", en: "Legal", ko: "변호사·법조인", zh: "律师·法律", emoji: "⚖️" },
+  tax: { ja: "税務", en: "Tax", ko: "세무", zh: "税务", emoji: "🧾" },
+  accounting: { ja: "会計", en: "Accounting", ko: "회계", zh: "会计", emoji: "📊" },
+  management: { ja: "プロ経営者", en: "Management", ko: "전문 경영인", zh: "职业经理人", emoji: "👔" },
+  design: { ja: "デザイナー", en: "Design", ko: "디자이너", zh: "设计师", emoji: "🎨" },
+  general: { ja: "その他・自作", en: "Custom", ko: "기타·직접 생성", zh: "其他·自建", emoji: "🎭" },
 };
 
 export function categoryLabel(category: string, lang: UiLanguage): string {
   const c = CATEGORY_LABELS[category as PersonaCategoryKey];
   if (!c) return category;
-  const name = lang === "ja" ? c.ja : c.en;
+  const name = lang === "ja" ? c.ja : lang === "ko" ? c.ko : lang === "zh" ? c.zh : c.en;
   return `${c.emoji} ${name}`;
 }

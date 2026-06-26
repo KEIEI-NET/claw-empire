@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { localeName, type UiLanguage } from "../../i18n";
 import type { Agent, Department, SubAgent, SubTask, Task } from "../../types";
 import * as api from "../../api";
@@ -47,16 +47,24 @@ export default function AgentDetailTabContent({
     setPersonaEnabled(Number(agent.persona_enabled ?? 1));
   }, [agent.id, agent.persona_profile_id, agent.persona_enabled]);
 
-  const savePersona = async (nextId: string | null, nextEnabled: number) => {
-    setPersonaId(nextId);
-    setPersonaEnabled(nextEnabled);
-    try {
-      await api.updateAgent(agent.id, { persona_profile_id: nextId, persona_enabled: nextEnabled });
-      onAgentUpdated?.();
-    } catch (err) {
-      console.error("Failed to update persona:", err);
-    }
-  };
+  const savePersona = useCallback(
+    async (nextId: string | null, nextEnabled: number) => {
+      const prevId = personaId;
+      const prevEnabled = personaEnabled;
+      setPersonaId(nextId);
+      setPersonaEnabled(nextEnabled);
+      try {
+        await api.updateAgent(agent.id, { persona_profile_id: nextId, persona_enabled: nextEnabled });
+        onAgentUpdated?.();
+      } catch (err) {
+        console.error("Failed to update persona:", err);
+        // Roll back the optimistic update so the UI matches the server.
+        setPersonaId(prevId);
+        setPersonaEnabled(prevEnabled);
+      }
+    },
+    [agent.id, personaId, personaEnabled, onAgentUpdated],
+  );
 
   if (tab === "info") {
     return (
