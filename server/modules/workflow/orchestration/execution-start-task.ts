@@ -243,6 +243,7 @@ export function createExecutionStartTaskTools(deps: CreateExecutionStartTaskTool
       ],
       {
         allowWarningFix: hasExplicitWarningFixRequest(taskData.title, taskData.description),
+        lang: taskLang,
       },
     );
 
