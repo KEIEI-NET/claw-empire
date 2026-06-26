@@ -22,11 +22,11 @@ function buildVideoFinalRenderRequestTitle(lang: string): string {
       return "[VIDEO_FINAL_RENDER] 最終動画レンダリング";
     case "zh":
       return "[VIDEO_FINAL_RENDER] 最终视频渲染";
-    case "en":
-      return "[VIDEO_FINAL_RENDER] Final video render";
     case "ko":
-    default:
       return "[VIDEO_FINAL_RENDER] 최종 영상 렌더링";
+    case "en":
+    default:
+      return "[VIDEO_FINAL_RENDER] Final video render";
   }
 }
 
