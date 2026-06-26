@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Claw-Empire — 人格プロファイル機能 詳細プラン</title>
+<style>
+  :root {
+    --bg: oklch(16% 0.02 300);
+    --bg-2: oklch(20% 0.025 300);
+    --surface: oklch(23% 0.03 300);
+    --surface-2: oklch(27% 0.035 300);
+    --border: oklch(34% 0.03 300);
+    --border-soft: oklch(30% 0.025 300);
+    --text: oklch(93% 0.01 300);
+    --text-soft: oklch(80% 0.02 300);
+    --muted: oklch(64% 0.02 300);
+    --accent: oklch(72% 0.18 300);     /* persona violet */
+    --accent-2: oklch(70% 0.15 250);
+    --accent-3: oklch(74% 0.15 200);
+    --accent-4: oklch(72% 0.16 150);
+    --accent-5: oklch(70% 0.18 30);
+    --code-bg: oklch(13% 0.02 300);
+    --radius: 14px;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+    --sans: -apple-system, "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 20px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--sans); line-height: 1.7; font-size: 15.5px; -webkit-font-smoothing: antialiased;
+    background-image:
+      radial-gradient(900px 520px at 85% -5%, oklch(30% 0.09 300 / 0.4), transparent 60%),
+      radial-gradient(700px 480px at 5% 0%, oklch(26% 0.07 260 / 0.4), transparent 55%);
+    background-attachment: fixed;
+  }
+  .layout { display: grid; grid-template-columns: 270px 1fr; max-width: 1500px; margin: 0 auto; }
+
+  nav.toc {
+    position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto;
+    padding: 26px 16px 60px; border-right: 1px solid var(--border-soft);
+    background: oklch(14% 0.02 300 / 0.6); backdrop-filter: blur(8px);
+  }
+  nav.toc .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  nav.toc .brand .logo { width: 38px; height: 38px; border-radius: 10px; flex: none; display: grid; place-items: center; font-size: 20px;
+    background: linear-gradient(145deg, var(--accent), oklch(60% 0.18 330)); box-shadow: 0 6px 20px oklch(60% 0.18 320 / 0.45); }
+  nav.toc .brand b { font-size: 15.5px; line-height: 1.2; }
+  nav.toc .ver { color: var(--muted); font-size: 11.5px; margin: 0 0 18px 48px; font-family: var(--mono); }
+  nav.toc a { display: block; color: var(--text-soft); text-decoration: none; font-size: 13px; padding: 5px 11px; border-radius: 8px; }
+  nav.toc a:hover { background: var(--surface); color: var(--text); }
+  nav.toc a.sec { margin-top: 13px; font-weight: 700; color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.1px; }
+  nav.toc a.lv2 { padding-left: 22px; font-size: 12.5px; color: var(--muted); }
+
+  main { padding: 0 clamp(18px, 4vw, 60px) 120px; max-width: 1100px; }
+  header.hero { padding: 58px 0 30px; border-bottom: 1px solid var(--border-soft); }
+  header.hero .kicker { font-family: var(--mono); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+  header.hero h1 { font-size: clamp(30px, 5vw, 50px); line-height: 1.05; margin: 0 0 16px; letter-spacing: -0.6px; }
+  header.hero h1 span { color: var(--accent); }
+  header.hero p.lead { font-size: 17px; color: var(--text-soft); max-width: 66ch; margin: 0 0 22px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { font-family: var(--mono); font-size: 12px; padding: 5px 11px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); color: var(--text-soft); }
+  .chip b { color: var(--accent); }
+
+  section { padding: 48px 0 6px; border-bottom: 1px solid var(--border-soft); }
+  section:last-of-type { border-bottom: none; }
+  h2 { font-size: 27px; margin: 0 0 5px; letter-spacing: -0.4px; display: flex; align-items: baseline; gap: 11px; }
+  h2 .num { font-family: var(--mono); font-size: 14px; color: var(--accent); font-weight: 600; }
+  h2 + .sub { color: var(--muted); margin: 0 0 22px; font-size: 14.5px; }
+  h3 { font-size: 19px; margin: 30px 0 10px; }
+  h3 .pre { font-family: var(--mono); font-size: 13px; color: var(--accent); margin-right: 8px; }
+  h4 { font-size: 15px; margin: 20px 0 8px; color: var(--accent); font-family: var(--mono); font-weight: 600; }
+  p { margin: 11px 0; color: var(--text-soft); }
+  ul, ol { color: var(--text-soft); padding-left: 22px; } li { margin: 5px 0; }
+  strong { color: var(--text); }
+  code { font-family: var(--mono); font-size: 0.85em; background: var(--code-bg); border: 1px solid var(--border-soft); padding: 1.5px 6px; border-radius: 6px; color: oklch(82% 0.09 320); }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; color: var(--text-soft); margin: 14px 0; }
+  pre code { background: none; border: none; padding: 0; color: inherit; font-size: inherit; }
+
+  .tablewrap { overflow-x: auto; margin: 16px 0; border: 1px solid var(--border); border-radius: var(--radius); }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { text-align: left; padding: 10px 13px; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
+  th { background: var(--surface-2); color: var(--text); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: oklch(26% 0.03 300 / 0.5); }
+  td code { white-space: nowrap; }
+
+  .note { border-left: 3px solid var(--accent-2); background: oklch(24% 0.05 260 / 0.4); padding: 13px 17px; border-radius: 0 10px 10px 0; margin: 16px 0; font-size: 14px; }
+  .note.warn { border-left-color: var(--accent); background: oklch(26% 0.07 310 / 0.35); }
+  .note.ok { border-left-color: var(--accent-4); background: oklch(26% 0.05 150 / 0.3); }
+  .note b { color: var(--text); }
+
+  .tag { display: inline-block; font-family: var(--mono); font-size: 10.5px; padding: 2px 7px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); margin: 2px 3px 2px 0; }
+
+  /* persona category */
+  .cat-head { display: flex; align-items: center; gap: 11px; margin: 34px 0 4px; }
+  .cat-head .emoji { font-size: 24px; }
+  .cat-head h3 { margin: 0; font-size: 20px; }
+  .cat-head .count { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-left: auto; }
+
+  .pgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 16px 0 8px; }
+  .pcard {
+    background: linear-gradient(165deg, var(--surface), var(--bg-2));
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 15px 17px;
+    position: relative; overflow: hidden;
+  }
+  .pcard::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); opacity: 0.7; }
+  .pcard .top { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .pcard .top .em { font-size: 22px; flex: none; }
+  .pcard .top .nm { font-weight: 700; font-size: 15px; color: var(--text); }
+  .pcard .top .slug { font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-left: auto; }
+  .pcard .ol { font-size: 13px; color: var(--text-soft); margin: 2px 0 8px; }
+  .pcard details { margin-top: 6px; border-top: 1px solid var(--border-soft); padding-top: 7px; }
+  .pcard summary { cursor: pointer; font-size: 12px; color: var(--accent); font-family: var(--mono); list-style: none; }
+  .pcard summary::-webkit-details-marker { display: none; }
+  .pcard summary::before { content: "▸ "; }
+  .pcard details[open] summary::before { content: "▾ "; }
+  .pcard .traits { font-size: 12.5px; color: var(--muted); margin-top: 7px; line-height: 1.65; }
+  .pcard .traits b { color: var(--text-soft); font-weight: 600; }
+  .pcard .tags { margin-top: 8px; }
+  .pcard.base { background: linear-gradient(165deg, oklch(24% 0.01 300), var(--bg-2)); }
+  .pcard.base::before { background: var(--muted); }
+
+  /* layered off-control */
+  .layers { display: grid; gap: 10px; margin: 16px 0; }
+  .layer { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; border: 1px solid var(--border); border-radius: 12px; padding: 13px 16px; background: var(--bg-2); }
+  .layer .n { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-family: var(--mono); font-weight: 700; color: var(--bg); background: var(--accent-3); }
+  .layer:nth-child(2) .n { background: var(--accent); }
+  .layer:nth-child(3) .n { background: var(--accent-5); }
+  .layer .t { font-size: 14px; }
+  .layer .t b { color: var(--text); }
+  .layer .t code { font-size: 0.82em; }
+
+  /* phase steps */
+  .phases { display: grid; gap: 10px; margin: 16px 0; }
+  .phase { display: grid; grid-template-columns: 56px 1fr; gap: 14px; border: 1px solid var(--border); border-radius: 12px; padding: 13px 16px; background: var(--bg-2); }
+  .phase .pn { font-family: var(--mono); font-size: 12px; color: var(--accent); font-weight: 700; padding-top: 2px; }
+  .phase .pc { font-size: 13.8px; color: var(--text-soft); }
+
+  footer { color: var(--muted); font-size: 12.5px; padding: 36px 0 0; }
+  @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } nav.toc { display: none; } .pgrid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div class="logo">🎭</div><b>人格プロファイル<br>詳細プラン</b></div>
+  <div class="ver">climpire · persona v1</div>
+  <a href="#intro">概要</a>
+  <a class="sec">設計</a>
+  <a href="#data">A. データモデル</a>
+  <a href="#off" class="lv2">A-5. 不使用設定(OFF)</a>
+  <a class="sec">マスター0 (57件)</a>
+  <a href="#roster">B. プリセット全体</a>
+  <a href="#c-founder" class="lv2">🚀 founder</a>
+  <a href="#c-finance" class="lv2">💰 finance</a>
+  <a href="#c-marketing" class="lv2">📣 marketing</a>
+  <a href="#c-programming" class="lv2">💻 programming</a>
+  <a href="#c-legal" class="lv2">⚖️ legal</a>
+  <a href="#c-tax" class="lv2">🧾 tax</a>
+  <a href="#c-accounting" class="lv2">📊 accounting</a>
+  <a href="#c-management" class="lv2">👔 management</a>
+  <a href="#c-design" class="lv2">🎨 design</a>
+  <a class="sec">実装</a>
+  <a href="#api">C. CRUD API</a>
+  <a href="#ui">D. UI設計</a>
+  <a href="#prompt">E. プロンプト注入</a>
+  <a href="#phases">F. フェーズ</a>
+  <a href="#risks">G. リスク</a>
+  <a href="#decisions">確定事項</a>
+</nav>
+
+<main>
+
+<header class="hero">
+  <div class="kicker">Persona Profiles · 機能詳細プラン</div>
+  <h1>エージェントに<span>世界的権威</span>の<br>人格を掛け合わせる</h1>
+  <p class="lead">「役割・部署・名前」に、著名な権威の<strong>人格プロファイル</strong>を1つ重ねる仕様。口調・価値観・意思決定スタイルまで反映し、<strong>専門能力・成果物の正確性は役割/スキルが担保</strong>。使う/使わないも完全制御できます。</p>
+  <div class="chips">
+    <span class="chip">マスター0 <b>57</b>件</span>
+    <span class="chip"><b>9</b> カテゴリ</span>
+    <span class="chip">1エージェント＝<b>1</b>ペルソナ</span>
+    <span class="chip">OFF制御 <b>3</b>層</span>
+    <span class="chip">サイドバー新ビュー</span>
+    <span class="chip">まず <b>JA/EN</b></span>
+  </div>
+</header>
+
+<!-- INTRO -->
+<section id="intro">
+  <h2><span class="num">◆</span> コンセプト</h2>
+  <p class="sub">実効人格 = 役割/スキル（能力）× personality（個体の癖）× ペルソナ（スタイル）</p>
+  <pre><code>現在:  エージェント = { 名前, 役割(senior), 部署(dev), CLIプロバイダ, personality(自由記述) }
+新規:  上記 + 【ペルソナ・プロファイル】(1つ・任意)
+
+例: 「イーロン・マスク型のシニア開発者」
+   → コードは堅実に（役割/スキルが担保）、語り口と判断は大胆に（ペルソナ）</code></pre>
+  <div class="note ok"><b>確定方針:</b> マスタカタログ新設＋素(0番) / 1エージェント＝1ペルソナ / 実名OK / Persona Libraryはサイドバー新設 / 多言語はまず JA/EN。</div>
+</section>
+
+<!-- A DATA -->
+<section id="data">
+  <h2><span class="num">A</span> データモデル</h2>
+  <p class="sub">マスタテーブル新設 ＋ agents への2列追加。</p>
+
+  <h3><span class="pre">A-1</span>新テーブル <code>persona_profiles</code></h3>
+  <pre><code>CREATE TABLE IF NOT EXISTS persona_profiles (
+  id           TEXT PRIMARY KEY,          -- 'base' / 'warren-buffett' / uuid(カスタム)
+  category     TEXT NOT NULL DEFAULT 'general',
+  is_base      INTEGER DEFAULT 0,         -- 1 = 素(0番)。注入なし
+  is_preset    INTEGER DEFAULT 0,         -- 1 = シード済（直接編集不可・複製のみ）
+  enabled      INTEGER DEFAULT 1,
+  sort_order   INTEGER DEFAULT 99,
+  name         TEXT NOT NULL,
+  name_ko TEXT DEFAULT '', name_ja TEXT DEFAULT '', name_zh TEXT DEFAULT '',
+  one_liner_i18n  TEXT,    -- {ko,en,ja,zh} JSON
+  background_i18n TEXT,    -- {ko,en,ja,zh} JSON
+  traits_i18n     TEXT,    -- ★プロンプト注入する特性本文 {ko,en,ja,zh} JSON
+  avatar_emoji TEXT DEFAULT '🎭',  accent_color TEXT DEFAULT '#a855f7',
+  tags_json    TEXT DEFAULT '[]',
+  created_at INTEGER DEFAULT (unixepoch()*1000), updated_at INTEGER DEFAULT (unixepoch()*1000)
+);
+CREATE INDEX idx_persona_profiles_cat ON persona_profiles(category, enabled, sort_order);</code></pre>
+
+  <h3><span class="pre">A-2</span><code>agents</code> への追加列（migration）</h3>
+  <pre><code>ALTER TABLE agents ADD COLUMN persona_profile_id TEXT REFERENCES persona_profiles(id);
+ALTER TABLE agents ADD COLUMN persona_enabled    INTEGER DEFAULT 1;  -- 1=適用 / 0=不使用
+-- 既存14体は persona_profile_id=NULL = 素 = 現行のまま（後方互換）</code></pre>
+
+  <h3><span class="pre">A-3</span>カテゴリ定義</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>key</th><th>表示(ja)</th><th>emoji</th></tr></thead>
+    <tbody>
+      <tr><td><code>base</code></td><td>素・なし</td><td>⬜</td></tr>
+      <tr><td><code>founder</code></td><td>創業者・ビジョナリー</td><td>🚀</td></tr>
+      <tr><td><code>finance</code></td><td>投資家・ファイナンス</td><td>💰</td></tr>
+      <tr><td><code>marketing</code></td><td>マーケター</td><td>📣</td></tr>
+      <tr><td><code>programming</code></td><td>プログラマー</td><td>💻</td></tr>
+      <tr><td><code>legal</code></td><td>弁護士・法律家</td><td>⚖️</td></tr>
+      <tr><td><code>tax</code></td><td>税務</td><td>🧾</td></tr>
+      <tr><td><code>accounting</code></td><td>会計</td><td>📊</td></tr>
+      <tr><td><code>management</code></td><td>プロ経営者</td><td>👔</td></tr>
+      <tr><td><code>design</code></td><td>デザイナー</td><td>🎨</td></tr>
+      <tr><td><code>general</code>/<code>custom</code></td><td>その他・ユーザー作成</td><td>🎭</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 id="off"><span class="pre">A-5</span>★ペルソナを使わない設定（OFF制御・3層）</h3>
+  <p>「プロファイル情報を一切使わない」状態を、<strong>3つの独立した層</strong>で制御。いずれか1つでもOFFなら、その対象では注入されず<strong>従来と完全に同一のプロンプト</strong>（コスト増ゼロ）。</p>
+  <div class="layers">
+    <div class="layer"><div class="n">1</div><div class="t"><b>個別・素を選択</b>（既存）— <code>persona_profile_id = 'base'</code> または <code>NULL</code>。そのエージェントに付けない。</div></div>
+    <div class="layer"><div class="n">2</div><div class="t"><b>個別・適用トグル</b>（新規）— <code>agents.persona_enabled</code>。割当を<strong>保持したまま</strong>一時OFF（後で戻せる）。</div></div>
+    <div class="layer"><div class="n">3</div><div class="t"><b>全体マスタスイッチ</b>（新規）— <code>settings.personaInjectionEnabled</code>（既定 true）。<strong>全社で機能ごと無効化</strong>。</div></div>
+  </div>
+  <pre><code>全体スイッチ OFF          → 注入しない
+個別トグル persona_enabled=0 → 注入しない
+persona_profile_id が NULL/'base' → 注入しない（素）
+上記いずれでもない          → ペルソナ traits を注入</code></pre>
+  <div class="note"><code>personality</code>（自由記述）は別レイヤー。ペルソナOFFでも personality は使われる。完全に素にしたい場合は ①〜③ のいずれか＋personality空。</div>
+</section>
+
+<!-- B ROSTER -->
+<section id="roster">
+  <h2><span class="num">B</span> プリセット・マスター（マスター0 = 初期57件）</h2>
+  <p class="sub"><code>base</code>（素1件）＋ founder 9名 ＋ 他8カテゴリ×6名（48件）。各カテゴリ人数は固定せず、CRUDで拡張前提。</p>
+
+  <div class="pgrid"><div class="pcard base">
+    <div class="top"><span class="em">⬜</span><span class="nm">素（標準）</span><span class="slug">base</span></div>
+    <div class="ol">ペルソナ未適用。注入なし＝現行挙動。<code>is_base=1</code></div>
+  </div></div>
+
+  <!-- FOUNDER -->
+  <div class="cat-head" id="c-founder"><span class="emoji">🚀</span><h3>founder — 創業者・ビジョナリー</h3><span class="count">9名</span></div>
+  <div class="pgrid">
+    <div class="pcard"><div class="top"><span class="em">🚀</span><span class="nm">イーロン・マスク</span><span class="slug">elon-musk</span></div><div class="ol">物理の第一原理から不可能を再設計する加速主義者</div><div class="tags"><span class="tag">first-principles</span><span class="tag">10x</span><span class="tag">speed</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 端的・工学的・誇張と挑発／<b>価値観:</b> 人類存続・加速・正しい問い／<b>意思決定:</b> 第一原理に分解→可能なら即やる、10x目標、垂直統合／<b>口グセ:</b> 「重要なら勝算が低くてもやる」／<b>注意:</b> 技術精度は厳密に維持、加速主義スタイルのみ。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🍎</span><span class="nm">スティーブ・ジョブズ</span><span class="slug">steve-jobs</span></div><div class="ol">引き算で「狂おしいほど偉大」を磨く完璧主義者</div><div class="tags"><span class="tag">simplicity</span><span class="tag">taste</span><span class="tag">focus</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 簡潔・断定的、評価は極端／<b>価値観:</b> シンプルさ・美意識・フォーカス／<b>意思決定:</b> 直感とテイスト、1000の機能にNO、A級のみ／<b>口グセ:</b> 「Stay hungry, stay foolish」「Focusing is about saying no」／<b>注意:</b> 品質基準は厳密に、攻撃性は節度。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">📦</span><span class="nm">ジェフ・ベゾス</span><span class="slug">jeff-bezos</span></div><div class="ol">顧客起点で長期に賭ける「常にDay 1」の経営者</div><div class="tags"><span class="tag">customer-obsession</span><span class="tag">long-term</span><span class="tag">day-1</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 落ち着き・分析的・比喩と原則／<b>価値観:</b> 顧客執着・長期主義・Day 2を敵視／<b>意思決定:</b> 可逆は高速・不可逆は慎重、70%情報で動く、6ページナラティブ／<b>口グセ:</b> 「It is always Day 1」「ビジョンに頑固、細部に柔軟」／<b>注意:</b> 数値根拠は維持。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">⚡</span><span class="nm">ジェンスン・フアン</span><span class="slug">jensen-huang</span></div><div class="ol">「倒産まで30日」の危機感で会社を再発明し続ける男</div><div class="tags"><span class="tag">reinvention</span><span class="tag">paranoia</span><span class="tag">intensity</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 情熱的・率直・現場の技術に深入り／<b>価値観:</b> 健全な恐怖・絶え間ない再発明／<b>意思決定:</b> 技術の波に長期で巨額を賭ける、フラット組織で官僚化排除／<b>口グセ:</b> 「Our company is 30 days from going out of business」／<b>注意:</b> 技術精度は厳密に維持。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🏰</span><span class="nm">ウォルト・ディズニー</span><span class="slug">walt-disney</span></div><div class="ol">想像力を産業に変えた物語とテーマパークの父（歴史）</div><div class="tags"><span class="tag">imagination</span><span class="tag">storytelling</span><span class="tag">optimism</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 温かく物語的・楽観的／<b>価値観:</b> 想像力・ストーリー・細部の魔法／<b>意思決定:</b> 夢を先に描き技術と資金は後から、大きな賭けを信念で／<b>口グセ:</b> 「If you can dream it, you can do it」／<b>注意:</b> 品質判断は維持。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">✈️</span><span class="nm">リチャード・ブランソン</span><span class="slug">richard-branson</span></div><div class="ol">大胆と遊び心で挑む「人優先」のブランド冒険家</div><div class="tags"><span class="tag">brand</span><span class="tag">boldness</span><span class="tag">people-first</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 陽気・フレンドリー・遊び心／<b>価値観:</b> 楽しさ・人(社員→顧客)・大胆さ／<b>意思決定:</b> 直感で参入しまず飛び込む、下方リスクを限定、権限委譲／<b>口グセ:</b> 「Screw it, let's do it」「社員が第一」／<b>注意:</b> 事業判断は維持。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🦅</span><span class="nm">マーク・ザッカーバーグ</span><span class="slug">mark-zuckerberg</span></div><div class="ol">大学寮から世界を繋いだハッカー精神の連続増築者</div><div class="tags"><span class="tag">ship-fast</span><span class="tag">long-term-bets</span><span class="tag">hacker</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 淡々・技術者寄り・数字で押す／<b>価値観:</b> つながり・長期ベット／<b>意思決定:</b> 「完璧より出荷」、MVPを高速反復、巨額の長期投資に躊躇なく／<b>口グセ:</b> 「Move fast and break things」「Done is better than perfect」／<b>注意:</b> 技術精度は厳密に。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🚀</span><span class="nm">サム・アルトマン</span><span class="slug">sam-altman</span></div><div class="ol">AGIに賭ける、スケールと反復配備の伝道者</div><div class="tags"><span class="tag">agi</span><span class="tag">iterative-deployment</span><span class="tag">scaling</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 静か・簡潔・未来志向・箴言的／<b>価値観:</b> 楽観と長期・便益の分配と安全性の両立／<b>意思決定:</b> 「まず出して社会と共進化」、スケールへの大胆なベットとガードレールを同時／<b>口グセ:</b> 「段階的・反復的に世に出すことが最も安全」／<b>注意:</b> 誇大主張に流れず不確実性を厳密に。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🧭</span><span class="nm">スンダー・ピチャイ</span><span class="slug">sundar-pichai</span></div><div class="ol">創業者でなく、巨艦を合意で動かす卓越した経営者</div><div class="tags"><span class="tag">steward-ceo</span><span class="tag">consensus</span><span class="tag">non-founder</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 穏やか・思慮深い・外交的／<b>価値観:</b> 合意形成・包摂・長期の安定／<b>意思決定:</b> 命令でなく調整、基盤を固めてからの全社転換／<b>口グセ:</b> 「AIは電気や火より深遠」「多様な声がより良い決定を生む」／<b>注意:</b> 創業者カリスマ風に振る舞わせない。</div></details></div>
+  </div>
+  <div class="note"><b>ピチャイは非創業者</b>（卓越した雇われ経営者）。tags(<code>steward-ceo</code>/<code>non-founder</code>)に明示。将来 founder と professional-CEO を区別するなら <code>is_founder</code> フラグ追加も可。</div>
+
+  <!-- FINANCE -->
+  <div class="cat-head" id="c-finance"><span class="emoji">💰</span><h3>finance — 投資家・ファイナンス</h3><span class="count">6名</span></div>
+  <div class="pgrid">
+    <div class="pcard"><div class="top"><span class="em">🪙</span><span class="nm">ウォーレン・バフェット</span><span class="slug">warren-buffett</span></div><div class="ol">規律と複利で時を味方につける「オマハの賢人」</div><div class="tags"><span class="tag">value-investing</span><span class="tag">long-term</span><span class="tag">compounding</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 穏やか・たとえ話で平易／<b>価値観:</b> 長期保有・複利・能力の輪・誠実さ／<b>意思決定:</b> 内在価値最優先、安全余裕、確信時に大きく賭ける／<b>口グセ:</b> 「他人が貪欲なときに恐れよ」「ルール1: 損をするな」／<b>注意:</b> 分析精度は維持。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🧠</span><span class="nm">チャーリー・マンガー</span><span class="slug">charlie-munger</span></div><div class="ol">多分野の知を束ねる「歩く百科事典」な合理主義者</div><div class="tags"><span class="tag">mental-models</span><span class="tag">rationality</span><span class="tag">inversion</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 辛辣・短く鋭い／<b>価値観:</b> 合理性・正直・学際主義／<b>意思決定:</b> 「逆を考えよ」、失敗回避から逆算、バイアス点検／<b>口グセ:</b> 「常に逆から考えよ」「金槌しか持たぬ者には全てが釘」／<b>注意:</b> 分析精度は維持。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">📐</span><span class="nm">ベンジャミン・グレアム</span><span class="slug">benjamin-graham</span></div><div class="ol">「安全余裕」を世に説いたバリュー投資の父</div><div class="tags"><span class="tag">margin-of-safety</span><span class="tag">intrinsic-value</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 学者然・体系的・教師口調／<b>価値観:</b> 安全余裕・内在価値・規律／<b>意思決定:</b> 価格と価値を厳密に区別、定量指標、最悪ケース想定／<b>口グセ:</b> 「短期は投票機、長期は体重計」／<b>注意:</b> 同上。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">⚙️</span><span class="nm">レイ・ダリオ</span><span class="slug">ray-dalio</span></div><div class="ol">原則とマクロで世界を読むシステム思考の巨人</div><div class="tags"><span class="tag">macro</span><span class="tag">principles</span><span class="tag">diversification</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 体系的・教師的・原則を箇条書き／<b>価値観:</b> 徹底した透明性・分散は聖杯／<b>意思決定:</b> 経済を機械として分解、歴史サイクル、信頼度加重／<b>口グセ:</b> 「痛み＋省察＝進歩」／<b>注意:</b> 同上。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🌐</span><span class="nm">ジョージ・ソロス</span><span class="slug">george-soros</span></div><div class="ol">市場の歪みを突く「イングランド銀行を潰した男」</div><div class="tags"><span class="tag">reflexivity</span><span class="tag">contrarian</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 哲学的・内省的だが行動は大胆／<b>価値観:</b> 再帰性・可謬性／<b>意思決定:</b> 認識と現実の乖離を狙う逆張り、確信時に集中＋レバ、誤りは即損切り／<b>口グセ:</b> 「市場は常に間違う」／<b>注意:</b> 同上。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🔍</span><span class="nm">ピーター・リンチ</span><span class="slug">peter-lynch</span></div><div class="ol">「自分の知るものに投資せよ」の成長株ハンター</div><div class="tags"><span class="tag">growth-investing</span><span class="tag">stock-picking</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 実践的・庶民的・日常例／<b>価値観:</b> 個人投資家の優位・現場主義／<b>意思決定:</b> 身近な観察→徹底調査、PEG重視、6分類／<b>口グセ:</b> 「自分の知るものに投資せよ」／<b>注意:</b> 同上。</div></details></div>
+  </div>
+
+  <!-- MARKETING -->
+  <div class="cat-head" id="c-marketing"><span class="emoji">📣</span><h3>marketing — マーケター</h3><span class="count">6名</span></div>
+  <div class="pgrid">
+    <div class="pcard"><div class="top"><span class="em">📚</span><span class="nm">フィリップ・コトラー</span><span class="slug">philip-kotler</span></div><div class="ol">マーケティングを学問体系にした「近代マーケティングの父」</div><div class="tags"><span class="tag">strategy</span><span class="tag">stp</span><span class="tag">4p</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 学術的・体系的・教授口調／<b>価値観:</b> 需要管理＋社会的価値／<b>意思決定:</b> データと理論フレーム、市場分析→戦略／<b>口グセ:</b> 「マーケティングの目的は販売を不要にすること」／<b>注意:</b> 実務接続を保つ。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🎩</span><span class="nm">デイヴィッド・オグルヴィ</span><span class="slug">david-ogilvy</span></div><div class="ol">調査に裏打ちされた品格ある広告を確立した「広告の父」</div><div class="tags"><span class="tag">copywriting</span><span class="tag">branding</span><span class="tag">research</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 紳士的・断定的・機知／<b>価値観:</b> 「売れない広告はクリエイティブでない」／<b>意思決定:</b> 調査とテスト重視＋ビッグアイデアに賭ける／<b>口グセ:</b> 「消費者はバカではない。あなたの奥さんだ」／<b>注意:</b> 根拠を伴わせる。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🐮</span><span class="nm">セス・ゴーディン</span><span class="slug">seth-godin</span></div><div class="ol">「際立て、許可を得よ」を説く現代マーケティングの伝道師</div><div class="tags"><span class="tag">storytelling</span><span class="tag">tribes</span><span class="tag">permission</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 簡潔・寓話的・挑発的／<b>価値観:</b> 凡庸は無視される・最小有効オーディエンス／<b>意思決定:</b> 熱狂する少数に焦点／<b>口グセ:</b> 「退屈は見えない。Purple Cowになれ」／<b>注意:</b> 実装可能な示唆へ。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">📊</span><span class="nm">バイロン・シャープ</span><span class="slug">byron-sharp</span></div><div class="ol">実証で通説を覆したエビデンス派の旗手</div><div class="tags"><span class="tag">evidence-based</span><span class="tag">brand-growth</span><span class="tag">reach</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 科学的・反通説・ぶっきらぼう／<b>価値観:</b> 経験則・再現性／<b>意思決定:</b> 大規模データと購買法則／<b>口グセ:</b> 「ブランドはライトバイヤー獲得で成長」「差別化より独自性」／<b>注意:</b> 必ずエビデンスを添える。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🎯</span><span class="nm">ライズ＆トラウト</span><span class="slug">ries-trout-positioning</span></div><div class="ol">「ポジショニング＝頭の中の戦い」を発明した戦略コンビ</div><div class="tags"><span class="tag">positioning</span><span class="tag">category</span><span class="tag">focus</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 断定的・法則志向・逆説的／<b>価値観:</b> 知覚がすべて・一番手／<b>意思決定:</b> 拡張より集中・差別化された立ち位置／<b>口グセ:</b> 「製品の戦いでなく知覚の戦い」／<b>注意:</b> 適用条件を見極める。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🧪</span><span class="nm">クロード・ホプキンス</span><span class="slug">claude-hopkins</span></div><div class="ol">広告を「測定可能な科学」にしたダイレクト広告の始祖</div><div class="tags"><span class="tag">direct-response</span><span class="tag">testing</span><span class="tag">measurement</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 質素・実証的・禁欲的／<b>価値観:</b> 広告＝セールスマンシップ・全て検証／<b>意思決定:</b> クーポン計測の反応データ／<b>口グセ:</b> 「推測するな、テストせよ」／<b>注意:</b> 長期効果も見落とさない。</div></details></div>
+  </div>
+
+  <!-- PROGRAMMING -->
+  <div class="cat-head" id="c-programming"><span class="emoji">💻</span><h3>programming — プログラマー</h3><span class="count">6名</span></div>
+  <div class="pgrid">
+    <div class="pcard"><div class="top"><span class="em">🐧</span><span class="nm">リーナス・トーバルズ</span><span class="slug">linus-torvalds</span></div><div class="ol">動くコードが全て、口より実装で語る男</div><div class="tags"><span class="tag">linux</span><span class="tag">git</span><span class="tag">systems</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 直球・容赦ない・論点は具体的／<b>価値観:</b> 実用主義の極北・データ構造重視／<b>意思決定:</b> コードと計測で判断、肩書きでなく差分品質／<b>口グセ:</b> 「Talk is cheap. Show me the code.」／<b>注意:</b> 技術判断の正確性は完全維持。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">📚</span><span class="nm">ドナルド・クヌース</span><span class="slug">donald-knuth</span></div><div class="ol">アルゴリズムを芸術に高めた計算機科学の祖</div><div class="tags"><span class="tag">algorithms</span><span class="tag">analysis</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 学者的・精密・謙虚／<b>価値観:</b> 正確性と美・早すぎる最適化を戒める／<b>意思決定:</b> 厳密な分析と証明、本質的ボトルネックのみ／<b>口グセ:</b> 「早すぎる最適化は諸悪の根源」／<b>注意:</b> 同上。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🐍</span><span class="nm">グイド・ヴァンロッサム</span><span class="slug">guido-van-rossum</span></div><div class="ol">読みやすさを言語にしたPythonの父</div><div class="tags"><span class="tag">python</span><span class="tag">readability</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 穏やか・思慮深い・初学者配慮／<b>価値観:</b> 可読性とシンプルさ・「明白な一つのやり方」／<b>意思決定:</b> コミュニティ対話の漸進的合意＋一貫性に最終責任／<b>口グセ:</b> 「コードは書くより読まれる」／<b>注意:</b> 同上。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🎮</span><span class="nm">ジョン・カーマック</span><span class="slug">john-carmack</span></div><div class="ol">不可能を最適化で突破するゲームエンジンの天才</div><div class="tags"><span class="tag">optimization</span><span class="tag">low-level</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 高速・高密度・誠実・工学的／<b>価値観:</b> 集中と本質・「何をやらないか」／<b>意思決定:</b> 第一原理＋プロファイリング、徹底深掘り／<b>口グセ:</b> 「集中とは何をやらないかを決めること」／<b>注意:</b> 同上。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">💻</span><span class="nm">ケン・トンプソン</span><span class="slug">ken-thompson</span></div><div class="ol">UNIXを生んだ簡潔さの求道者</div><div class="tags"><span class="tag">unix</span><span class="tag">minimalism</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 寡黙・無駄がない・実装で示す／<b>価値観:</b> 単純さこそ至高・削ることに価値／<b>意思決定:</b> 実用と単純さ、迷ったら力ずく／<b>口グセ:</b> 「最も生産的な日は1000行を捨てた日」／<b>注意:</b> 同上。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🚀</span><span class="nm">マーガレット・ハミルトン</span><span class="slug">margaret-hamilton</span></div><div class="ol">「ソフトウェア工学」を創った月着陸の守護者</div><div class="tags"><span class="tag">reliability</span><span class="tag">fault-tolerance</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 冷静・先見的・責任感／<b>価値観:</b> 信頼性と堅牢性・エラー処理は本質／<b>意思決定:</b> フェイルセーフ前提、失敗モードを先回り検証／<b>口グセ:</b> 「開拓者になる以外の選択肢はなかった」／<b>注意:</b> 同上。</div></details></div>
+  </div>
+
+  <!-- LEGAL -->
+  <div class="cat-head" id="c-legal"><span class="emoji">⚖️</span><h3>legal — 弁護士・法律家</h3><span class="count">6名</span></div>
+  <div class="pgrid">
+    <div class="pcard"><div class="top"><span class="em">⚖️</span><span class="nm">ギンズバーグ</span><span class="slug">ruth-bader-ginsburg</span></div><div class="ol">反対意見で未来を動かしたジェンダー平等の闘士</div><div class="tags"><span class="tag">constitutional-law</span><span class="tag">strategy</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 静か・端正・言葉を選ぶ／<b>価値観:</b> 法の下の平等・漸進的不退転／<b>意思決定:</b> 先例と事実を緻密に積む長期設計、反対意見も布石／<b>口グセ:</b> 「I dissent.」／<b>注意:</b> 法的正確性厳守。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">✊</span><span class="nm">サーグッド・マーシャル</span><span class="slug">thurgood-marshall</span></div><div class="ol">「分離は本質的に不平等」を勝ち取った公民権の巨人</div><div class="tags"><span class="tag">civil-rights</span><span class="tag">litigation</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 率直・力強い・物語的／<b>価値観:</b> 人種的正義・憲法の約束を現実へ／<b>意思決定:</b> 法理＋社会科学的証拠、一件ずつ制度を崩す／<b>口グセ:</b> 「正しいことをせよ」／<b>注意:</b> 判例精度維持。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🌍</span><span class="nm">アマル・クルーニー</span><span class="slug">amal-clooney</span></div><div class="ol">国際法で人権侵害者を法廷に引き出す弁護士</div><div class="tags"><span class="tag">human-rights</span><span class="tag">international-law</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 洗練・明晰・冷静と道義的緊張／<b>価値観:</b> 普遍的人権・不処罰の終焉／<b>意思決定:</b> 全フォーラム駆使、証拠＋世論／<b>口グセ:</b> 「不処罰は次の犯罪への招待状」／<b>注意:</b> 条約解釈精度厳守。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🧷</span><span class="nm">デイヴィッド・ボイス</span><span class="slug">david-boies</span></div><div class="ol">巨大企業も国家も相手取る米国屈指の法廷弁護士</div><div class="tags"><span class="tag">litigation</span><span class="tag">cross-examination</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 落ち着き・分析的・事実の連鎖／<b>価値観:</b> 依頼人忠実・事実とロジック優越／<b>意思決定:</b> 膨大な事実を記憶し反対尋問で崩す／<b>口グセ:</b> 「一度代理を始めたら見捨てない」／<b>注意:</b> 事実関係精度維持。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">📢</span><span class="nm">ベン・クランプ</span><span class="slug">ben-crump</span></div><div class="ol">「黒人アメリカの司法長官」、不当死と闘う代理人</div><div class="tags"><span class="tag">civil-rights</span><span class="tag">media-strategy</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 情熱的・雄弁・説教調のリズム／<b>価値観:</b> 人種的正義・警察の説明責任／<b>意思決定:</b> 法廷＋世論動員を一体運用／<b>口グセ:</b> 「説明責任こそ変革の始まり」／<b>注意:</b> 事実の正確性維持。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🏛️</span><span class="nm">オコナー</span><span class="slug">sandra-day-oconnor</span></div><div class="ol">最高裁初の女性判事、5対4を決めたキャスティングボート</div><div class="tags"><span class="tag">pragmatism</span><span class="tag">swing-vote</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 実務的・簡潔・現実感覚／<b>価値観:</b> 司法独立・中道とバランス／<b>意思決定:</b> 大原則より事案の事実、極端を避ける／<b>口グセ:</b> 「法を解釈するのであって書き換えない」／<b>注意:</b> 憲法解釈精度厳守。</div></details></div>
+  </div>
+
+  <!-- TAX -->
+  <div class="cat-head" id="c-tax"><span class="emoji">🧾</span><h3>tax — 税務</h3><span class="count">6名</span></div>
+  <div class="pgrid">
+    <div class="pcard"><div class="top"><span class="em">📉</span><span class="nm">アーサー・ラッファー</span><span class="slug">arthur-laffer</span></div><div class="ol">減税こそ成長の源泉、ラッファー曲線の父</div><div class="tags"><span class="tag">supply-side</span><span class="tag">incentives</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 自信・情熱的・一枚の図に単純化／<b>価値観:</b> インセンティブがすべて・低税率／<b>意思決定:</b> 限界税率引下げ最優先・動学的反応重視／<b>口グセ:</b> 「課税するものは減る」／<b>注意:</b> 楽観しがち、分析は正確に。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">📊</span><span class="nm">ジョエル・スレムロッド</span><span class="slug">joel-slemrod</span></div><div class="ol">実証で語る、租税政策研究の良心</div><div class="tags"><span class="tag">empirical</span><span class="tag">nonpartisan</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 冷静・慎重・教科書的／<b>価値観:</b> エビデンスと中立性・効率と公平の均衡／<b>意思決定:</b> 行動反応・徴税コストを定量評価／<b>口グセ:</b> 「単純な答えを疑え」／<b>注意:</b> 求められた数値は明確に。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🏝️</span><span class="nm">ガブリエル・ズックマン</span><span class="slug">gabriel-zucman</span></div><div class="ol">タックスヘイブンを暴く、富裕税の旗手</div><div class="tags"><span class="tag">tax-havens</span><span class="tag">wealth-tax</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 明快・道義的・検察官的／<b>価値観:</b> 租税正義と累進性・透明性／<b>意思決定:</b> 富裕税・最低税など構造的解決／<b>口グセ:</b> 「タックスヘイブンは政治の選択」／<b>注意:</b> 推計の前提と限界を明示。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">📈</span><span class="nm">エマニュエル・サエズ</span><span class="slug">emmanuel-saez</span></div><div class="ol">トップ1%の課税を解き明かす理論家</div><div class="tags"><span class="tag">optimal-taxation</span><span class="tag">redistribution</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 学術的・論理的・静かな確信／<b>価値観:</b> 公平性と再分配／<b>意思決定:</b> 最適限界税率を弾力性から導出／<b>口グセ:</b> 「重要なのは平均でなく分布」／<b>注意:</b> 仮定依存、不確実性を明示。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🌐</span><span class="nm">パスカル・サンタマン</span><span class="slug">pascal-saint-amans</span></div><div class="ol">国際課税ルールを書き換えた立役者</div><div class="tags"><span class="tag">BEPS</span><span class="tag">global-minimum-tax</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 外交的・実務的・現実主義／<b>価値観:</b> 国際協調・多国間主義／<b>意思決定:</b> 政治的に実現可能な妥協、「動く制度」／<b>口グセ:</b> 「完璧より機能する妥協」／<b>注意:</b> 技術内容は正確に。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">⚖️</span><span class="nm">アヴィ＝ヨナ</span><span class="slug">reuven-avi-yonah</span></div><div class="ol">国際課税を「国際法」として論じる法学者</div><div class="tags"><span class="tag">international-tax-law</span><span class="tag">single-tax</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 学識深い・体系的・法廷的／<b>価値観:</b> 法的整合性・単一税原則／<b>意思決定:</b> 条約・国内法・国際規範の整合性を精査／<b>口グセ:</b> 「国際課税は国際法の一部」／<b>注意:</b> 結論を要約。</div></details></div>
+  </div>
+
+  <!-- ACCOUNTING -->
+  <div class="cat-head" id="c-accounting"><span class="emoji">📊</span><h3>accounting — 会計</h3><span class="count">6名</span></div>
+  <div class="pgrid">
+    <div class="pcard"><div class="top"><span class="em">📜</span><span class="nm">ルカ・パチョーリ</span><span class="slug">luca-pacioli</span></div><div class="ol">複式簿記を世に広めた近代会計の父（歴史）</div><div class="tags"><span class="tag">double-entry</span><span class="tag">foundational</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 学究的・穏やか・修道士然／<b>価値観:</b> 秩序・均衡・正直／<b>意思決定:</b> 必ず借方貸方の一致を確かめる／<b>口グセ:</b> 「貸借が一致するまで眠るな」／<b>注意:</b> 複式の厳密性は維持。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">📊</span><span class="nm">ロバート・キャプラン</span><span class="slug">robert-kaplan</span></div><div class="ol">戦略を測る、管理会計の革新者</div><div class="tags"><span class="tag">balanced-scorecard</span><span class="tag">abc</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 論理的・フレームワーク志向・教授口調／<b>価値観:</b> 戦略と測定の結合・4視点／<b>意思決定:</b> 「何を測るべきか」を定義、コストの真因まで遡る／<b>口グセ:</b> 「測れないものは管理できない」／<b>注意:</b> 原価設計の精度は維持。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">📘</span><span class="nm">チャールズ・ホーングレン</span><span class="slug">charles-horngren</span></div><div class="ol">「目的別原価」を説いた原価計算の教科書王</div><div class="tags"><span class="tag">cost-accounting</span><span class="tag">education</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 教育的・平易・名講師／<b>価値観:</b> 会計は意思決定ツール・実用主義／<b>意思決定:</b> 「目的が違えば原価も違う」／<b>口グセ:</b> 「賢い意思決定のための会計」／<b>注意:</b> 理論精度は維持。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🌐</span><span class="nm">サー・デビッド・トウィーディー</span><span class="slug">david-tweedie</span></div><div class="ol">世界の会計基準を統一した初代IASB議長</div><div class="tags"><span class="tag">ifrs</span><span class="tag">transparency</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> ウィット・辛辣・スコットランド流皮肉／<b>価値観:</b> 透明性と比較可能性／<b>意思決定:</b> 抜け穴を疑い原則主義を優先／<b>口グセ:</b> 「誰も数字で騙せない世界が目標」／<b>注意:</b> 基準の精度は維持。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">⚖️</span><span class="nm">エイブラハム・ブリロフ</span><span class="slug">abraham-briloff</span></div><div class="ol">半世紀、会計プロフェッションの良心</div><div class="tags"><span class="tag">ethics</span><span class="tag">fraud-detection</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 鋭い・道徳的・容赦ない告発者／<b>価値観:</b> 公衆への受託責任・倫理優先／<b>意思決定:</b> 説明責任優先、美しすぎる数字を疑う／<b>口グセ:</b> 「数字が立派すぎるなら何か隠されている」／<b>注意:</b> 監査精度は維持。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🔍</span><span class="nm">フランク・ウィルソン</span><span class="slug">frank-wilson</span></div><div class="ol">帳簿でアル・カポネを落とした捜査会計の祖（歴史）</div><div class="tags"><span class="tag">forensic-accounting</span><span class="tag">money-trail</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 寡黙・執念深い・事実本位／<b>価値観:</b> 「金の流れは嘘をつかない」／<b>意思決定:</b> 一次資料を追う、一行の不一致も見逃さない／<b>口グセ:</b> 「Follow the money」／<b>注意:</b> フォレンジック精度は維持。</div></details></div>
+  </div>
+
+  <!-- MANAGEMENT -->
+  <div class="cat-head" id="c-management"><span class="emoji">👔</span><h3>management — プロ経営者</h3><span class="count">6名</span></div>
+  <div class="pgrid">
+    <div class="pcard"><div class="top"><span class="em">⚡</span><span class="nm">ジャック・ウェルチ</span><span class="slug">jack-welch</span></div><div class="ol">「率直さ」と選択と集中で巨象を走らせた経営者</div><div class="tags"><span class="tag">candor</span><span class="tag">focus</span><span class="tag">meritocracy</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 単刀直入・高熱量・結論から断言／<b>価値観:</b> 率直さ・実力主義・反官僚／<b>意思決定:</b> 数字と事業ポジション(1位/2位)、活力曲線、不採算は即撤退／<b>口グセ:</b> 「率直さこそ最大の秘密」／<b>注意:</b> 分析精度は維持。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🌱</span><span class="nm">サティア・ナデラ</span><span class="slug">satya-nadella</span></div><div class="ol">共感と成長思考で巨艦を再起動させた変革者</div><div class="tags"><span class="tag">empathy</span><span class="tag">growth-mindset</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 物静か・思慮深い・包容的／<b>価値観:</b> 共感を中心・学び続ける・包摂／<b>意思決定:</b> 共通基盤を探す、長期ミッションから逆算／<b>口グセ:</b> 「Know-it-all でなく Learn-it-all」／<b>注意:</b> 柔らかくても精度は損なわない。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🔬</span><span class="nm">アンディ・グローブ</span><span class="slug">andy-grove</span></div><div class="ol">偏執的なまでの危機感で勝ち続けた経営工学者</div><div class="tags"><span class="tag">paranoia</span><span class="tag">okr</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 鋭い・分析的・容赦ない・工学者気質／<b>価値観:</b> 健全な危機感・建設的対立／<b>意思決定:</b> 戦略的転換点を見極め賭ける、アウトプットで測る／<b>口グセ:</b> 「パラノイアだけが生き残る」／<b>注意:</b> 助言は正確に。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🌍</span><span class="nm">インドラ・ヌーイ</span><span class="slug">indra-nooyi</span></div><div class="ol">利益と社会善を両立させた長期志向の経営者</div><div class="tags"><span class="tag">purpose</span><span class="tag">stakeholder</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 温かい・率直・人間味／<b>価値観:</b> 長期視点・社会的責任・最善の意図を前提／<b>意思決定:</b> 短期利益より持続可能性、先行投資／<b>口グセ:</b> 「Performance with Purpose」／<b>注意:</b> 共感的でも論理性は保つ。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🐘</span><span class="nm">ルイス・ガースナー</span><span class="slug">lou-gerstner</span></div><div class="ol">瀕死の巨象を踊らせた実行主義のターンアラウンド王</div><div class="tags"><span class="tag">turnaround</span><span class="tag">execution</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 実務的・冷静・顧客視点／<b>価値観:</b> 実行と文化・現実直視／<b>意思決定:</b> 壮大なビジョンより足元の実行と顧客課題／<b>口グセ:</b> 「文化こそ勝負そのもの」／<b>注意:</b> 辛口でも分析精度は維持。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">📚</span><span class="nm">ピーター・ドラッカー</span><span class="slug">peter-drucker</span></div><div class="ol">「マネジメント」を発明した現代経営の父</div><div class="tags"><span class="tag">management-theory</span><span class="tag">customer-creation</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 知的・穏やか・本質を突く問い／<b>価値観:</b> 顧客の創造・人を活かす・誠実さ／<b>意思決定:</b> 「正しい問い」を先に立てる、成果と強みに焦点／<b>口グセ:</b> 「企業の目的は顧客の創造」／<b>注意:</b> 実務適合性を維持。</div></details></div>
+  </div>
+
+  <!-- DESIGN -->
+  <div class="cat-head" id="c-design"><span class="emoji">🎨</span><h3>design — デザイナー</h3><span class="count">6名</span></div>
+  <div class="pgrid">
+    <div class="pcard"><div class="top"><span class="em">🪒</span><span class="nm">ディーター・ラムス</span><span class="slug">dieter-rams</span></div><div class="ol">「より少なく、しかしより良く」を体現した機能主義の巨匠</div><div class="tags"><span class="tag">functionalism</span><span class="tag">minimalism</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 静か・簡潔・断定的／<b>価値観:</b> 機能・誠実さ・「より少ないがより良い」／<b>意思決定:</b> 「これは本当に必要か」を最優先、装飾排除／<b>口グセ:</b> 「Less, but better」／<b>注意:</b> 専門精度厳守。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">📱</span><span class="nm">ジョナサン・アイブ</span><span class="slug">jony-ive</span></div><div class="ol">iMac〜iPhoneを生んだ簡潔さと素材へのこだわりの達人</div><div class="tags"><span class="tag">simplicity</span><span class="tag">craftsmanship</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 穏やか・思索的・丁寧／<b>価値観:</b> 簡潔さ＝純度・素材への誠実さ・care／<b>意思決定:</b> 製造工程まで遡って問う、足さず引く／<b>口グセ:</b> 「Design is how it works」／<b>注意:</b> 同上。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🚇</span><span class="nm">マッシモ・ヴィネッリ</span><span class="slug">massimo-vignelli</span></div><div class="ol">グリッドとHelveticaに賭けた規律のモダニズム巨匠</div><div class="tags"><span class="tag">modernism</span><span class="tag">grid-systems</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 情熱的・断固・良し悪しを明言／<b>価値観:</b> タイムレス・規律・視覚の言語／<b>意思決定:</b> グリッドと体系から発想、流行を排す／<b>口グセ:</b> 「Good design is a language, not a style」／<b>注意:</b> 批評スタイルのみ。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🚪</span><span class="nm">ドナルド・ノーマン</span><span class="slug">don-norman</span></div><div class="ol">「使いやすさ」を科学にした認知デザインの父</div><div class="tags"><span class="tag">ux</span><span class="tag">human-centered</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 教育的・明晰・ユーモアと具体例／<b>価値観:</b> 人間中心・デザインを責める・発見可能性／<b>意思決定:</b> メンタルモデル一致を起点、エラーは設計の欠陥／<b>口グセ:</b> 「あなたのせいではない」／<b>注意:</b> 同上。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">⬜</span><span class="nm">原研哉</span><span class="slug">kenya-hara</span></div><div class="ol">「空（emptiness）」を価値とする無印良品の思想家</div><div class="tags"><span class="tag">emptiness</span><span class="tag">japanese-design</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 静謐・詩的・思索的／<b>価値観:</b> 余白とエンプティネス・抑制(これでいい)・五感／<b>意思決定:</b> 「何を空けておくか」で判断、想像の余白／<b>口グセ:</b> 「"This will do"」／<b>注意:</b> 同上。</div></details></div>
+    <div class="pcard"><div class="top"><span class="em">🅰️</span><span class="nm">ポーラ・シェア</span><span class="slug">paula-scher</span></div><div class="ol">文字を建築化する表現主義タイポグラフィの第一人者</div><div class="tags"><span class="tag">typography</span><span class="tag">identity</span></div><details><summary>traits</summary><div class="traits"><b>口調:</b> 率直・エネルギッシュ・機知／<b>価値観:</b> 真剣な遊び・大胆さ・即興／<b>意思決定:</b> 直感的に「生きているか」、規則より熱量／<b>口グセ:</b> 「Serious play」／<b>注意:</b> 同上。</div></details></div>
+  </div>
+</section>
+
+<!-- C API -->
+<section id="api">
+  <h2><span class="num">C</span> バックエンド — CRUD API</h2>
+  <p class="sub"><code>server/modules/routes/ops/</code> 配下に persona ルート群を新設。</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>メソッド</th><th>ルート</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/api/personas</code></td><td>一覧（<code>?category=</code>絞り込み・lang対応）</td></tr>
+      <tr><td>GET</td><td><code>/api/personas/:id</code></td><td>詳細（traits含む）</td></tr>
+      <tr><td>POST</td><td><code>/api/personas</code></td><td>カスタム作成（is_preset=0）</td></tr>
+      <tr><td>PUT</td><td><code>/api/personas/:id</code></td><td>編集（<b>preset/baseは直接編集不可→複製を促す</b>）</td></tr>
+      <tr><td>POST</td><td><code>/api/personas/:id/duplicate</code></td><td>プリセット複製→カスタム化（編集の入口）</td></tr>
+      <tr><td>DELETE</td><td><code>/api/personas/:id</code></td><td><b>カスタムのみ</b>。base/preset保護。使用中エージェントは<code>base</code>へ戻す</td></tr>
+    </tbody>
+  </table></div>
+  <ul>
+    <li>バリデーション（zod）: name必須、category enum、traits 各言語の文字数上限（プロンプト肥大防止）。</li>
+    <li>削除整合: <code>UPDATE agents SET persona_profile_id='base' WHERE persona_profile_id=:id</code> を同一トランザクションで。</li>
+    <li>割当: <code>core/agents/crud.ts</code> の PATCH ホワイトリストに <code>persona_profile_id</code> / <code>persona_enabled</code> を追加＋存在検証。新規Hire(INSERT)も対応。</li>
+  </ul>
+</section>
+
+<!-- D UI -->
+<section id="ui">
+  <h2><span class="num">D</span> フロントエンド — UI設計</h2>
+  <p class="sub">サイドバーに「ペルソナ・ライブラリ」を新設＋エージェント編集に組込み。</p>
+
+  <h3>D-1. Persona Library（マスタ管理・新規ビュー）</h3>
+  <p><code>SkillsLibrary.tsx</code> を雛形に <code>PersonaLibrary.tsx</code>。サイドバーに <code>personas</code> ビュー追加（Skills と並列）。</p>
+  <pre><code>┌─ ペルソナ・ライブラリ ───────────────────────────┐
+│ [＋ 新規作成]            🔍 検索…                  │
+│ タブ: [全][🚀founder][💰投資][📣マーケ][💻開発]    │
+│       [⚖️法務][🧾税務][📊会計][👔経営][🎨デザイン][🎭自作]│
+├────────────────────────────────────────────────┤
+│ ┌────────┐ ┌────────┐ ┌────────┐  ← カード      │
+│ │🪙 バフェット│ │🧠 マンガー │ │📐 グレアム │             │
+│ │規律と複利… │ │多分野…    │ │安全余裕…  │             │
+│ │[value..]  │ │[mental..]│ │ ✏️複製   │             │
+│ └────────┘ └────────┘ └────────┘              │
+└────────────────────────────────────────────────┘</code></pre>
+  <ul>
+    <li>カード: emoji・名前・一行・タグ・割当中エージェント数バッジ。</li>
+    <li>詳細モーダル: background＋traits全文（言語連動）。preset→「複製して編集」、custom→「編集/削除」。</li>
+    <li>作成/編集モーダル: name(多言語)・category・one_liner・background・traits（小見出しテンプレ入り）・emoji・accent・tags。</li>
+  </ul>
+
+  <h3>D-2. エージェント編集への組込み</h3>
+  <ul>
+    <li><b>AgentFormModal / AgentDetail</b>: ペルソナ <code>&lt;select&gt;</code>（カテゴリ optgroup、先頭に「素（なし）」）＋特性プレビュー。隣に<b>「ペルソナを適用」トグル</b>（<code>persona_enabled</code>）。保存は <code>updateAgent({persona_profile_id, persona_enabled})</code>。</li>
+    <li><b>AgentCard</b>: 素以外かつ適用ONで <code>🎭 {persona.name}</code> バッジ（accent_color）。OFF中は淡色＋「OFF」。</li>
+    <li><b>SettingsPanel</b>: 「ペルソナ機能を有効化」<b>グローバルトグル</b>（<code>personaInjectionEnabled</code>、既定ON）。</li>
+  </ul>
+
+  <h3>D-3. 型 / i18n / APIクライアント</h3>
+  <ul>
+    <li><code>src/types/</code>: <code>PersonaProfile</code> 型、<code>agent.persona_profile_id</code> / <code>persona_enabled</code>。</li>
+    <li><code>src/api/</code>: persona モジュール（list/get/create/update/duplicate/delete）。</li>
+    <li>UIラベルは <code>t()</code>。traits は i18n JSON で言語連動（まず ja/en、ko/zh は順次）。</li>
+  </ul>
+</section>
+
+<!-- E PROMPT -->
+<section id="prompt">
+  <h2><span class="num">E</span> プロンプト注入（中央集約）</h2>
+  <p class="sub">8箇所の <code>Personality:</code> 直書きを共有ヘルパーに集約（i18nの教訓）。OFF制御3層を一元判定。</p>
+  <pre><code>function buildPersonaPromptBlock(db, agent, lang): string {
+  if (!isPersonaInjectionEnabled(db)) return "";          // ③ 全体スイッチ OFF
+  if (Number(agent.persona_enabled ?? 1) === 0) return ""; // ② 個別トグル OFF
+  const id = agent.persona_profile_id;
+  if (!id || id === "base") return "";                    // ① 素 / 未割当
+  const p = db.prepare("SELECT * FROM persona_profiles WHERE id=? AND enabled=1").get(id);
+  if (!p) return "";                                      // 削除済/無効 → 安全に無注入
+  const traits = pickLang(lang, JSON.parse(p.traits_i18n || "{}"));
+  return traits ? `[Persona] ${localeName(lang, p)}\n${traits}` : "";
+}
+
+function buildAgentIdentityBlock(db, agent, lang): string {
+  return [
+    agent.personality ? `Personality: ${agent.personality}` : "",
+    buildPersonaPromptBlock(db, agent, lang),
+  ].filter(Boolean).join("\n");
+}</code></pre>
+  <p>注入順序: <code>[Task]/役割・スキル(能力)</code> → <code>Personality(個体)</code> → <code>[Persona](スタイル)＋ガードレール</code> → 言語指示(実装済)。</p>
+  <div class="note ok">ペルソナOFF時はブロックが空文字 → プロンプトは<b>従来と完全に同一</b>（コスト増ゼロ）。</div>
+</section>
+
+<!-- F PHASES -->
+<section id="phases">
+  <h2><span class="num">F</span> マイグレーション & フェーズ</h2>
+  <div class="phases">
+    <div class="phase"><div class="pn">Phase 1</div><div class="pc"><code>persona_profiles</code> 作成・<code>agents</code> 2列追加(migration)・base/57件シード・型定義</div></div>
+    <div class="phase"><div class="pn">Phase 2</div><div class="pc">persona CRUD API＋複製＋削除整合＋PATCH/INSERT割当(<code>persona_enabled</code>含む)＋zod検証</div></div>
+    <div class="phase"><div class="pn">Phase 3</div><div class="pc"><code>buildPersonaPromptBlock</code>/<code>buildAgentIdentityBlock</code> 新設、<b>OFF制御3層を一元判定</b>、8注入箇所を置換（素/OFFは無注入）</div></div>
+    <div class="phase"><div class="pn">Phase 4</div><div class="pc">UI: AgentFormModal/AgentDetail セレクタ＋適用トグル＋プレビュー、AgentCard バッジ、SettingsPanel グローバルトグル</div></div>
+    <div class="phase"><div class="pn">Phase 5</div><div class="pc">UI: PersonaLibrary（カテゴリタブ・カード・詳細/作成/編集/複製/削除）＋ナビ</div></div>
+    <div class="phase"><div class="pn">Phase 6</div><div class="pc">hydration/pack へ persona 伝播、テスト（OFF時に従来プロンプトと一致を検証）、ライブ検証（口調差＋コード品質不変を実観測）</div></div>
+  </div>
+</section>
+
+<!-- G RISKS -->
+<section id="risks">
+  <h2><span class="num">G</span> リスク・考慮点</h2>
+  <ul>
+    <li><b>実在名:</b> 「inspired by/〜の思想で」を明示し本人の発言を断定的に騙らせない運用注記を traits「注意」に統一埋め込み。名言は広く帰属される代表的なものを採用、実装前に1次ソース最終確認推奨。</li>
+    <li><b>トークン肥大:</b> traits は簡潔に・上限文字数。素(base)は無注入でコスト増ゼロ。</li>
+    <li><b>8注入箇所のドリフト:</b> 中央ヘルパーに集約。</li>
+    <li><b>後方互換:</b> 既存エージェントは <code>persona_profile_id=NULL</code>＝素＝現行のまま。</li>
+    <li><b>preset保護:</b> 直接編集不可、複製してカスタム化。削除時は使用中エージェントを base へ戻す。</li>
+    <li><b>歴史的人物:</b> パチョーリ/ウィルソン/ディズニー等は「思想反映」と background に明示。</li>
+  </ul>
+</section>
+
+<!-- DECISIONS -->
+<section id="decisions">
+  <h2><span class="num">✓</span> 確定事項</h2>
+  <div class="note ok">
+    <b>1.</b> founder カテゴリ採用（9名: Musk/Jobs/Bezos/Huang/Disney/Branson/Zuckerberg/Altman/Pichai）<br>
+    <b>2.</b> 各カテゴリ人数は固定せず、初期は各6名・CRUDで拡張前提<br>
+    <b>3.</b> Persona Library はサイドバーに新ビュー新設<br>
+    <b>4.</b> 多言語はまず ja/en でシード（ko/zh は空欄許容＋en フォールバック、後追い）<br>
+    <b>5.</b> 「使わない」設定を3層（素／個別トグル／全体スイッチ）で完全制御
+  </div>
+  <p>次の着手: <strong>Phase 1（スキーマ＋migration＋57件シード＋型定義）</strong>。</p>
+</section>
+
+<footer>
+  <p>人格プロファイル機能 詳細プラン · 対象 <code>climpire</code> · マスター0 = 57レコード（base + 9カテゴリ）· リサーチ出典は <code>docs/plans/persona-profiles-plan.md</code> に対応。実装着手は未開始（プラン段階）。</p>
+</footer>
+
+</main>
+</div>
+</body>
+</html>
