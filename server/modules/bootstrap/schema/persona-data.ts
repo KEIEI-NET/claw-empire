@@ -1,4 +1,4 @@
-// Master-0 persona preset catalog (57 records: base + 9 categories).
+// Master-0 persona preset catalog (58 records: base + 9 categories).
 // JA is authoritative (researched); EN is a concise faithful translation.
 // ko/zh are intentionally omitted for now and fall back to EN via pickLang.
 
@@ -12,7 +12,8 @@ export type PersonaCategory =
   | "tax"
   | "accounting"
   | "management"
-  | "design";
+  | "design"
+  | "general"; // user-created custom personas default to this
 
 export interface PersonaPresetSeed {
   id: string;
@@ -37,6 +38,7 @@ export const PERSONA_CATEGORY_ACCENT: Record<PersonaCategory, string> = {
   accounting: "#38bdf8",
   management: "#fb7185",
   design: "#f472b6",
+  general: "#a855f7",
 };
 
 export const PERSONA_CATEGORY_LABELS: Record<PersonaCategory, { ja: string; en: string; emoji: string }> = {
@@ -50,6 +52,7 @@ export const PERSONA_CATEGORY_LABELS: Record<PersonaCategory, { ja: string; en: 
   accounting: { ja: "会計", en: "Accounting", emoji: "📊" },
   management: { ja: "プロ経営者", en: "Management", emoji: "👔" },
   design: { ja: "デザイナー", en: "Design", emoji: "🎨" },
+  general: { ja: "その他・自作", en: "Custom", emoji: "🎭" },
 };
 
 // Helper to keep records compact.

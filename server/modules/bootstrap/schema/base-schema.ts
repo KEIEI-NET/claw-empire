@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS agents (
   avatar_emoji TEXT NOT NULL DEFAULT '🤖',
   sprite_number INTEGER,
   personality TEXT,
+  persona_profile_id TEXT,
+  persona_enabled INTEGER NOT NULL DEFAULT 1 CHECK(persona_enabled IN (0,1)),
   status TEXT NOT NULL DEFAULT 'idle' CHECK(status IN ('idle','working','break','offline')),
   current_task_id TEXT,
   stats_tasks_done INTEGER DEFAULT 0,
@@ -378,7 +380,7 @@ CREATE TABLE IF NOT EXISTS api_providers (
 
 CREATE TABLE IF NOT EXISTS persona_profiles (
   id TEXT PRIMARY KEY,
-  category TEXT NOT NULL DEFAULT 'general',
+  category TEXT NOT NULL DEFAULT 'general' CHECK(category IN ('base','founder','finance','marketing','programming','legal','tax','accounting','management','design','general')),
   is_base INTEGER NOT NULL DEFAULT 0,
   is_preset INTEGER NOT NULL DEFAULT 0,
   enabled INTEGER NOT NULL DEFAULT 1,

@@ -74,15 +74,15 @@ export interface PersonaProfile {
   enabled: number;
   sort_order: number;
   name: string;
-  name_ko?: string;
-  name_ja?: string;
-  name_zh?: string;
+  name_ko: string;
+  name_ja: string;
+  name_zh: string;
   one_liner_i18n?: string | null;
   background_i18n?: string | null;
   traits_i18n?: string | null;
   avatar_emoji: string;
   accent_color: string;
-  tags_json?: string;
+  tags_json: string;
   created_at?: number;
   updated_at?: number;
 }

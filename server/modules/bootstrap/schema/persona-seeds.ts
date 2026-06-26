@@ -22,6 +22,7 @@ export function seedDefaultPersonas(db: DbLike): void {
       category = excluded.category,
       is_base = excluded.is_base,
       is_preset = 1,
+      enabled = 1,
       sort_order = excluded.sort_order,
       name = excluded.name,
       name_ja = excluded.name_ja,

@@ -142,7 +142,7 @@ export function applyTaskSchemaMigrations(db: DbLike): void {
     /* already exists */
   }
   try {
-    db.exec("ALTER TABLE agents ADD COLUMN persona_enabled INTEGER NOT NULL DEFAULT 1");
+    db.exec("ALTER TABLE agents ADD COLUMN persona_enabled INTEGER NOT NULL DEFAULT 1 CHECK(persona_enabled IN (0,1))");
   } catch {
     /* already exists */
   }
