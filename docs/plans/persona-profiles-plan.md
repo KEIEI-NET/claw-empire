@@ -91,9 +91,9 @@ persona_profile_id が NULL/'base' → 注入しない（素）
 
 ---
 
-## Part B. プリセット・マスター（マスター0 = 初期57レコード）
+## Part B. プリセット・マスター（マスター0 = 初期58レコード）
 
-> `base`（素・1件）＋ founder 9名＋他8カテゴリ×6名（48件）＝ 計57レコードを初期シード。
+> `base`（素・1件）＋ founder 9名＋他8カテゴリ×6名（48件）＝ 計58レコードを初期シード。
 > **各カテゴリの人数は固定しない**（拡張前提）。CRUDで随時追加でき、`sort_order` で並び替え。founder は9名、他カテゴリは初期6名で着手し後から増やす想定。
 
 ### B-0. base（素・0番）
@@ -372,7 +372,7 @@ function buildAgentIdentityBlock(db, agent, lang): string {
 
 | Phase | 内容 |
 |---|---|
-| 1 | `persona_profiles` 作成・`agents.persona_profile_id`＋`persona_enabled` 追加(migration)・base/57件シード・型定義 |
+| 1 | `persona_profiles` 作成・`agents.persona_profile_id`＋`persona_enabled` 追加(migration)・base/58件シード・型定義 |
 | 2 | persona CRUD API＋複製＋削除整合＋PATCH/INSERT割当(`persona_enabled`含む)＋zod検証 |
 | 3 | `buildPersonaPromptBlock`/`buildAgentIdentityBlock` 新設、**OFF制御3層を一元判定**、8注入箇所を置換（言語連動・素/OFFは無注入） |
 | 4 | UI: AgentFormModal/AgentDetail セレクタ＋適用トグル＋プレビュー、AgentCard バッジ、SettingsPanel グローバルトグル |

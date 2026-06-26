@@ -134,6 +134,19 @@ export function applyTaskSchemaMigrations(db: DbLike): void {
 
   ensureOfficePackScopedDepartmentSchema(db);
 
+  // Persona profile assignment (additive, backward compatible).
+  // NULL persona_profile_id == 'base' (素) == no persona injection.
+  try {
+    db.exec("ALTER TABLE agents ADD COLUMN persona_profile_id TEXT");
+  } catch {
+    /* already exists */
+  }
+  try {
+    db.exec("ALTER TABLE agents ADD COLUMN persona_enabled INTEGER NOT NULL DEFAULT 1");
+  } catch {
+    /* already exists */
+  }
+
   migrateMessagesDirectiveType(db);
   migrateLegacyTasksStatusSchema(db);
   repairLegacyTaskForeignKeys(db);

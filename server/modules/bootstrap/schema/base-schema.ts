@@ -375,5 +375,27 @@ CREATE TABLE IF NOT EXISTS api_providers (
   created_at INTEGER DEFAULT (unixepoch()*1000),
   updated_at INTEGER DEFAULT (unixepoch()*1000)
 );
+
+CREATE TABLE IF NOT EXISTS persona_profiles (
+  id TEXT PRIMARY KEY,
+  category TEXT NOT NULL DEFAULT 'general',
+  is_base INTEGER NOT NULL DEFAULT 0,
+  is_preset INTEGER NOT NULL DEFAULT 0,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  sort_order INTEGER NOT NULL DEFAULT 99,
+  name TEXT NOT NULL,
+  name_ko TEXT NOT NULL DEFAULT '',
+  name_ja TEXT NOT NULL DEFAULT '',
+  name_zh TEXT NOT NULL DEFAULT '',
+  one_liner_i18n TEXT,
+  background_i18n TEXT,
+  traits_i18n TEXT,
+  avatar_emoji TEXT NOT NULL DEFAULT '🎭',
+  accent_color TEXT NOT NULL DEFAULT '#a855f7',
+  tags_json TEXT NOT NULL DEFAULT '[]',
+  created_at INTEGER DEFAULT (unixepoch()*1000),
+  updated_at INTEGER DEFAULT (unixepoch()*1000)
+);
+CREATE INDEX IF NOT EXISTS idx_persona_profiles_cat ON persona_profiles(category, enabled, sort_order);
 `);
 }

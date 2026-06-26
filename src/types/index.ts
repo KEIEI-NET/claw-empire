@@ -44,11 +44,47 @@ export interface Agent {
   avatar_emoji: string;
   sprite_number?: number | null;
   personality: string | null;
+  persona_profile_id?: string | null;
+  persona_enabled?: number;
   status: AgentStatus;
   current_task_id: string | null;
   stats_tasks_done: number;
   stats_xp: number;
   created_at: number;
+}
+
+export type PersonaCategory =
+  | "base"
+  | "founder"
+  | "finance"
+  | "marketing"
+  | "programming"
+  | "legal"
+  | "tax"
+  | "accounting"
+  | "management"
+  | "design"
+  | "general";
+
+export interface PersonaProfile {
+  id: string;
+  category: PersonaCategory;
+  is_base: number;
+  is_preset: number;
+  enabled: number;
+  sort_order: number;
+  name: string;
+  name_ko?: string;
+  name_ja?: string;
+  name_zh?: string;
+  one_liner_i18n?: string | null;
+  background_i18n?: string | null;
+  traits_i18n?: string | null;
+  avatar_emoji: string;
+  accent_color: string;
+  tags_json?: string;
+  created_at?: number;
+  updated_at?: number;
 }
 
 export interface MeetingPresence {
