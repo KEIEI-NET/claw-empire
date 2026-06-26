@@ -17,7 +17,7 @@ interface SubtaskDelegationDeps {
   getDeptRoleConstraint: (deptId: string, deptName: string) => string;
   getRecentConversationContext: (agentId: string, limit?: number) => string;
   getAgentDisplayName: (agent: AgentRow, lang: string) => string;
-  buildTaskExecutionPrompt: (parts: string[], opts?: { allowWarningFix?: boolean }) => string;
+  buildTaskExecutionPrompt: (parts: string[], opts?: { allowWarningFix?: boolean; lang?: string }) => string;
   hasExplicitWarningFixRequest: (...textParts: Array<string | null | undefined>) => boolean;
   delegatedTaskToSubtask: Map<string, string>;
   subtaskDelegationCallbacks: Map<string, () => void>;

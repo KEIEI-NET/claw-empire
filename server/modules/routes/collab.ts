@@ -255,7 +255,7 @@ export function registerRoutesPartB(ctx: RuntimeContext): RouteCollabExports {
     const hasKorean = /[가-힣]/.test(content);
     const hasJapanese = /[ぁ-んァ-ン一-龯]/.test(content);
     const hasChinese = /[\u4e00-\u9fff]/.test(content) && !hasJapanese;
-    const displayName = normalizeMessengerTextLine(agent.name_ko || agent.name || "Agent");
+    const displayName = normalizeMessengerTextLine((hasKorean ? agent.name_ko || agent.name : agent.name) || "Agent");
     const avatar = normalizeMessengerTextLine(agent.avatar_emoji || "🤖");
     const taskTitle = extractTaskTitleFromReportText(content, requestLine);
 

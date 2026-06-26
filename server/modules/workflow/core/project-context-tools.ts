@@ -58,11 +58,27 @@ export function createProjectContextTools(deps: CreateProjectContextToolsDeps) {
     return lines.join("\n");
   }
 
+  function taskOutputLanguageInstruction(lang?: string): string | null {
+    switch (lang) {
+      case "ja":
+        return "【出力言語 / Output language】すべての出力・報告・要約・コードコメント・コミットメッセージは日本語で記述してください。Write ALL output, reports, summaries, code comments, and commit messages in Japanese (日本語).";
+      case "zh":
+        return "【输出语言 / Output language】所有输出、报告、摘要、代码注释和提交信息都必须使用中文。Write ALL output, reports, summaries, code comments, and commit messages in Chinese.";
+      case "en":
+        return "【Output language】Write ALL output, reports, summaries, code comments, and commit messages in English.";
+      case "ko":
+        return "【출력 언어 / Output language】모든 출력·보고·요약·코드 주석·커밋 메시지는 한국어로 작성하세요. Write ALL output, reports, summaries, code comments, and commit messages in Korean.";
+      default:
+        return null;
+    }
+  }
+
   function buildTaskExecutionPrompt(
     parts: Array<string | null | undefined>,
-    opts: { allowWarningFix?: boolean } = {},
+    opts: { allowWarningFix?: boolean; lang?: string } = {},
   ): string {
     return [
+      taskOutputLanguageInstruction(opts.lang),
       ...parts,
       EXECUTION_CONTINUITY_POLICY_LINES.join("\n"),
       buildMvpCodeReviewPolicyBlock(Boolean(opts.allowWarningFix)),

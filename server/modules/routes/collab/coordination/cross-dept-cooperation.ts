@@ -554,6 +554,7 @@ export function createCrossDeptCooperationTools(deps: CrossDeptCooperationDeps) 
             ],
             {
               allowWarningFix: hasExplicitWarningFixRequest(crossTaskData.title, crossTaskData.description),
+              lang: taskLang,
             },
           );
           const executionSession = ensureTaskExecutionSession(crossTaskId, execAgent.id, execProvider);

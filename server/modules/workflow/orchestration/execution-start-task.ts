@@ -74,7 +74,7 @@ export function createExecutionStartTaskTools(deps: CreateExecutionStartTaskTool
   } = deps;
 
   function startTaskExecutionForAgent(taskId: string, execAgent: any, deptId: string | null, deptName: string): void {
-    const execName = execAgent.name_ko || execAgent.name;
+    const execName = execAgent.name;
     const t = nowMs();
     db.prepare(
       "UPDATE tasks SET status = 'in_progress', assigned_agent_id = ?, started_at = ?, updated_at = ? WHERE id = ?",
@@ -243,6 +243,7 @@ export function createExecutionStartTaskTools(deps: CreateExecutionStartTaskTool
       ],
       {
         allowWarningFix: hasExplicitWarningFixRequest(taskData.title, taskData.description),
+        lang: taskLang,
       },
     );
 
@@ -316,13 +317,14 @@ export function createExecutionStartTaskTools(deps: CreateExecutionStartTaskTool
       ),
       taskLang,
     );
+    const execDisplayName = taskLang === "ko" ? execAgent.name_ko || execAgent.name : execAgent.name;
     notifyCeo(
       pickL(
         l(
-          [`${execName}가 '${taskData.title}' 작업을 시작했습니다.${worktreeNote}`],
-          [`${execName} started work on '${taskData.title}'.${worktreeNote}`],
-          [`${execName}が '${taskData.title}' の作業を開始しました。${worktreeNote}`],
-          [`${execName} 已开始处理 '${taskData.title}'。${worktreeNote}`],
+          [`${execDisplayName}가 '${taskData.title}' 작업을 시작했습니다.${worktreeNote}`],
+          [`${execDisplayName} started work on '${taskData.title}'.${worktreeNote}`],
+          [`${execDisplayName}が '${taskData.title}' の作業を開始しました。${worktreeNote}`],
+          [`${execDisplayName} 已开始处理 '${taskData.title}'。${worktreeNote}`],
         ),
         taskLang,
       ),

@@ -295,6 +295,12 @@ export function createReportWorkflowTools(deps: CreateReportWorkflowToolsDeps) {
       .filter(Boolean)
       .join("\n");
 
+    const designCheckpointShortTitle =
+      task.title.length > 48 ? `${task.title.slice(0, 45).trimEnd()}...` : task.title;
+    const designCheckpointPrefix =
+      lang === "ja" ? "[デザイン確認]" : lang === "zh" ? "[设计确认]" : lang === "ko" ? "[디자인 컨펌]" : "[Design Review]";
+    const designCheckpointTitle = `${designCheckpointPrefix} ${designCheckpointShortTitle}`;
+
     db.prepare(
       `
   INSERT INTO tasks (id, title, description, department_id, assigned_agent_id, project_id, status, priority, task_type, workflow_pack_key, project_path, source_task_id, created_at, updated_at)
@@ -302,7 +308,7 @@ export function createReportWorkflowTools(deps: CreateReportWorkflowToolsDeps) {
 `,
     ).run(
       childTaskId,
-      `[디자인 컨펌] ${task.title.length > 48 ? `${task.title.slice(0, 45).trimEnd()}...` : task.title}`,
+      designCheckpointTitle,
       designDescription,
       designAgent.id,
       task.project_id ?? null,
@@ -314,7 +320,7 @@ export function createReportWorkflowTools(deps: CreateReportWorkflowToolsDeps) {
     );
     recordTaskCreationAudit({
       taskId: childTaskId,
-      taskTitle: `[디자인 컨펌] ${task.title.length > 48 ? `${task.title.slice(0, 45).trimEnd()}...` : task.title}`,
+      taskTitle: designCheckpointTitle,
       taskStatus: "planned",
       departmentId: "design",
       assignedAgentId: designAgent.id,

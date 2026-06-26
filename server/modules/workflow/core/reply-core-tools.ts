@@ -52,7 +52,7 @@ export function createReplyCoreTools(deps: CreateReplyCoreToolsDeps) {
   function normalizeMeetingLang(value: unknown): Lang {
     if (isLang(value)) return value;
     const preferred = getPreferredLanguage();
-    return isLang(preferred) ? preferred : "ko";
+    return isLang(preferred) ? preferred : "en";
   }
 
   function sleepMs(ms: number): Promise<void> {
@@ -73,11 +73,11 @@ export function createReplyCoreTools(deps: CreateReplyCoreToolsDeps) {
         return "Respond in Japanese.";
       case "zh":
         return "Respond in Chinese.";
-      case "en":
-        return "Respond in English.";
       case "ko":
-      default:
         return "Respond in Korean.";
+      case "en":
+      default:
+        return "Respond in English.";
     }
   }
 
@@ -169,6 +169,8 @@ export function createReplyCoreTools(deps: CreateReplyCoreToolsDeps) {
   }
 
   function fallbackTurnReply(kind: ReplyKind, lang: string, agent?: AgentRow): string {
+    // Unknown/invalid languages fall back to English, never Korean.
+    if (!isLang(lang)) lang = "en";
     const name = agent ? getAgentDisplayName(agent, lang) : "";
     switch (kind) {
       case "opening":
@@ -208,7 +210,7 @@ export function createReplyCoreTools(deps: CreateReplyCoreToolsDeps) {
     agent: AgentRow | undefined,
     messages: { ko: string; en: string; ja: string; zh: string },
   ): string {
-    const body = lang === "en" ? messages.en : lang === "ja" ? messages.ja : lang === "zh" ? messages.zh : messages.ko;
+    const body = lang === "ko" ? messages.ko : lang === "ja" ? messages.ja : lang === "zh" ? messages.zh : messages.en;
     const name = agent ? getAgentDisplayName(agent, lang) : "";
     return name ? `${name}: ${body}` : body;
   }

@@ -484,6 +484,7 @@ Whenever you complete a subtask, report it in this format:
       ],
       {
         allowWarningFix: hasExplicitWarningFixRequest(task.title, task.description),
+        lang: taskLang,
       },
     );
 
