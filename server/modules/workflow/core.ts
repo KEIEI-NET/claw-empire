@@ -285,6 +285,7 @@ export function initializeWorkflowPartA(ctx: RuntimeContext): WorkflowCoreExport
     });
 
   const { buildMeetingPrompt, buildDirectReplyPrompt, buildCliFailureMessage } = createMeetingPromptTools({
+    db: db as any,
     getDeptName,
     getDeptRoleConstraint,
     getRoleLabel,

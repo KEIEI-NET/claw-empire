@@ -25,6 +25,7 @@ function createAgent(overrides: Partial<AgentRow> = {}): AgentRow {
 
 function createTools() {
   return createMeetingPromptTools({
+    db: { prepare: () => ({ get: () => undefined, run: () => undefined, all: () => [] }) } as any,
     getDeptName: () => "Design",
     getDeptRoleConstraint: () => "",
     getRoleLabel: () => "Junior",
@@ -64,6 +65,7 @@ describe("buildMeetingPrompt", () => {
   it("passes workflow pack key into department name lookup", () => {
     const getDeptName = vi.fn(() => "씬 엔진팀");
     const tools = createMeetingPromptTools({
+      db: { prepare: () => ({ get: () => undefined, run: () => undefined, all: () => [] }) } as any,
       getDeptName,
       getDeptRoleConstraint: () => "",
       getRoleLabel: () => "팀장",

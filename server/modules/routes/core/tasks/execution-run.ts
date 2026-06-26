@@ -11,6 +11,7 @@ import {
   consumeInterruptPrompts,
   loadPendingInterruptPrompts,
 } from "../../../workflow/core/interrupt-injection-tools.ts";
+import { buildAgentIdentityBlock } from "../../../workflow/core/persona-prompt.ts";
 
 export type TaskRunRouteDeps = Pick<
   RuntimeContext,
@@ -472,7 +473,7 @@ Whenever you complete a subtask, report it in this format:
         conversationCtx,
         `\n---`,
         `Agent: ${agent.name} (${roleLabel}, ${agent.department_name || "Unassigned"})`,
-        agent.personality ? `Personality: ${agent.personality}` : "",
+        buildAgentIdentityBlock(db, agent, taskLang),
         deptConstraint,
         departmentPromptBlock,
         `NOTE: You are working in an isolated Git worktree branch (climpire/${id.slice(0, 8)}). Commit your changes normally.`,

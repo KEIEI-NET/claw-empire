@@ -9,6 +9,7 @@ import {
   consumeInterruptPrompts,
   loadPendingInterruptPrompts,
 } from "../core/interrupt-injection-tools.ts";
+import { buildAgentIdentityBlock } from "../core/persona-prompt.ts";
 
 type CreateExecutionStartTaskToolsDeps = {
   nowMs: RuntimeContext["nowMs"];
@@ -233,7 +234,7 @@ export function createExecutionStartTaskTools(deps: CreateExecutionStartTaskTool
         conversationCtx,
         `\n---`,
         `Agent: ${execAgent.name} (${roleLabel}, ${deptName})`,
-        execAgent.personality ? `Personality: ${execAgent.personality}` : "",
+        buildAgentIdentityBlock(db, execAgent, taskLang),
         deptConstraint,
         deptPromptBlock,
         `NOTE: You are working in an isolated Git worktree branch (climpire/${taskId.slice(0, 8)}). Commit your changes normally.`,

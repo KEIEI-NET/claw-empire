@@ -5,6 +5,7 @@ import { getDepartmentPromptForPack } from "../../../workflow/packs/department-s
 import { resolveWorkflowPackKeyForTask } from "../../../workflow/packs/task-pack-resolver.ts";
 import { resolveConstrainedAgentScopeForTask } from "../../core/tasks/execution-run-auto-assign.ts";
 import type { AgentRow } from "./types.ts";
+import { buildAgentIdentityBlock } from "../../../workflow/core/persona-prompt.ts";
 
 interface CrossDeptContext {
   teamLeader: AgentRow;
@@ -539,7 +540,7 @@ export function createCrossDeptCooperationTools(deps: CrossDeptCooperationDeps) 
               crossConversationCtx,
               `\n---`,
               `Agent: ${execAgent.name} (${roleLabel}, ${crossDeptName})`,
-              execAgent.personality ? `Personality: ${execAgent.personality}` : "",
+              buildAgentIdentityBlock(db, execAgent, taskLang),
               deptConstraint,
               deptPromptBlock,
               pickL(

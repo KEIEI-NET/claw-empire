@@ -3,6 +3,7 @@ import { getDepartmentPromptForPack } from "../../workflow/packs/department-scop
 import type { AgentRow } from "./direct-chat.ts";
 import type { L10n } from "./language-policy.ts";
 import type { SubtaskRow } from "./subtask-summary.ts";
+import { buildAgentIdentityBlock } from "../../workflow/core/persona-prompt.ts";
 
 type ParentTaskRow = {
   id: string;
@@ -283,7 +284,7 @@ export function createSubtaskDelegationPromptBuilder(deps: PromptDeps) {
         ``,
         `---`,
         `Agent: ${agentDisplayName} (${roleLabel}, ${targetDeptName})`,
-        execAgent.personality ? `Personality: ${execAgent.personality}` : "",
+        buildAgentIdentityBlock(db, execAgent, lang),
         deptConstraint,
         deptPromptBlock,
         videoRuntimeRuleBlock,
