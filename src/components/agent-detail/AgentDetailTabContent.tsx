@@ -1,5 +1,8 @@
+import { useEffect, useState } from "react";
 import { localeName, type UiLanguage } from "../../i18n";
 import type { Agent, Department, SubAgent, SubTask, Task } from "../../types";
+import * as api from "../../api";
+import PersonaSelect from "../persona/PersonaSelect";
 import { getSubAgentSpriteNum, SUBTASK_STATUS_ICON, taskStatusLabel, taskTypeLabel, type TFunction } from "./constants";
 
 interface AgentDetailTabContentProps {
@@ -16,6 +19,7 @@ interface AgentDetailTabContentProps {
   onChat: (agent: Agent) => void;
   onAssignTask: (agentId: string) => void;
   onOpenTerminal?: (taskId: string) => void;
+  onAgentUpdated?: () => void;
 }
 
 export default function AgentDetailTabContent({
@@ -32,8 +36,27 @@ export default function AgentDetailTabContent({
   onChat,
   onAssignTask,
   onOpenTerminal,
+  onAgentUpdated,
 }: AgentDetailTabContentProps) {
   const xpLevel = Math.floor(agent.stats_xp / 100) + 1;
+
+  const [personaId, setPersonaId] = useState<string | null>(agent.persona_profile_id ?? null);
+  const [personaEnabled, setPersonaEnabled] = useState<number>(Number(agent.persona_enabled ?? 1));
+  useEffect(() => {
+    setPersonaId(agent.persona_profile_id ?? null);
+    setPersonaEnabled(Number(agent.persona_enabled ?? 1));
+  }, [agent.id, agent.persona_profile_id, agent.persona_enabled]);
+
+  const savePersona = async (nextId: string | null, nextEnabled: number) => {
+    setPersonaId(nextId);
+    setPersonaEnabled(nextEnabled);
+    try {
+      await api.updateAgent(agent.id, { persona_profile_id: nextId, persona_enabled: nextEnabled });
+      onAgentUpdated?.();
+    } catch (err) {
+      console.error("Failed to update persona:", err);
+    }
+  };
 
   if (tab === "info") {
     return (
@@ -45,6 +68,18 @@ export default function AgentDetailTabContent({
           <div className="text-sm text-slate-300">
             {agent.personality ?? t({ ko: "설정 없음", en: "Not set", ja: "未設定", zh: "未设置" })}
           </div>
+        </div>
+
+        <div className="bg-slate-700/30 rounded-lg p-3">
+          <div className="text-xs text-slate-500 mb-1.5">
+            {t({ ko: "페르소나 (인물)", en: "Persona", ja: "ペルソナ（人物）", zh: "人格（人物）" })}
+          </div>
+          <PersonaSelect
+            value={personaId}
+            enabled={personaEnabled}
+            onChange={(id) => savePersona(id, id ? personaEnabled : 1)}
+            onToggle={(en) => savePersona(personaId, en)}
+          />
         </div>
 
         <div className="grid grid-cols-3 gap-2">

@@ -754,6 +754,7 @@ export default function AgentDetail({
             onChat={onChat}
             onAssignTask={onAssignTask}
             onOpenTerminal={onOpenTerminal}
+            onAgentUpdated={onAgentUpdated}
           />
         </div>
       </div>

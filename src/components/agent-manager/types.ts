@@ -22,6 +22,8 @@ export interface FormData {
   avatar_emoji: string;
   sprite_number: number | null;
   personality: string;
+  persona_profile_id: string | null;
+  persona_enabled: number;
 }
 
 export interface DeptForm {

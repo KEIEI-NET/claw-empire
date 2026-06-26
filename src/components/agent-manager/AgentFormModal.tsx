@@ -4,6 +4,7 @@ import { localeName, useI18n } from "../../i18n";
 import * as api from "../../api";
 import { CLI_PROVIDERS, ROLE_BADGE, ROLE_LABEL, ROLES } from "./constants";
 import EmojiPicker from "./EmojiPicker";
+import PersonaSelect from "../persona/PersonaSelect";
 import type { FormData } from "./types";
 
 function fileToBase64(file: File): Promise<string> {
@@ -318,6 +319,18 @@ export default function AgentFormModal({
                 placeholder={tr("전문 분야나 성격 설명...", "Expertise or personality...")}
                 className={`${inputCls} resize-none`}
                 style={inputStyle}
+              />
+            </div>
+            {/* 페르소나 (인물 프로파일) */}
+            <div>
+              <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--th-text-secondary)" }}>
+                {tr("페르소나 (인물)", "Persona")}
+              </label>
+              <PersonaSelect
+                value={form.persona_profile_id}
+                enabled={form.persona_enabled}
+                onChange={(id) => setForm({ ...form, persona_profile_id: id })}
+                onToggle={(en) => setForm({ ...form, persona_enabled: en })}
               />
             </div>
           </div>

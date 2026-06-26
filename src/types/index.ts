@@ -406,6 +406,7 @@ export interface CompanySettings {
   autoUpdateEnabled: boolean;
   autoUpdateNoticePending?: boolean;
   oauthAutoSwap?: boolean;
+  personaInjectionEnabled?: boolean;
   theme: "dark" | "light";
   language: UiLanguage;
   defaultProvider: CliProvider;
@@ -425,6 +426,7 @@ export const DEFAULT_SETTINGS: CompanySettings = {
   autoUpdateEnabled: false,
   autoUpdateNoticePending: false,
   oauthAutoSwap: true,
+  personaInjectionEnabled: true,
   theme: "dark",
   language: "en",
   defaultProvider: "claude",

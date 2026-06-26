@@ -135,6 +135,20 @@ export default function GeneralSettingsTab({ t, form, setForm, saved, onSave }: 
               zh: "失败/额度限制时自动切换到下一个 OAuth 账号",
             })}
           />
+
+          <ToggleSettingCard
+            label={t({ ko: "페르소나 적용", en: "Persona Injection", ja: "ペルソナ適用", zh: "应用人格" })}
+            checked={form.personaInjectionEnabled !== false}
+            onToggle={() =>
+              setForm({ ...form, personaInjectionEnabled: !(form.personaInjectionEnabled !== false) })
+            }
+            title={t({
+              ko: "끄면 모든 에이전트의 페르소나를 전역으로 비활성화합니다(할당은 유지).",
+              en: "When off, disables persona injection for all agents company-wide (assignments are kept).",
+              ja: "オフにすると全エージェントのペルソナを全社で無効化します（割当は保持）。",
+              zh: "关闭后将在全公司范围内禁用所有智能体的人格注入（保留分配）。",
+            })}
+          />
         </div>
 
         <div>

@@ -134,6 +134,8 @@ export async function updateAgent(
       | "avatar_emoji"
       | "sprite_number"
       | "personality"
+      | "persona_profile_id"
+      | "persona_enabled"
     >
   > & {
     workflow_pack_key?: WorkflowPackKey;
@@ -154,6 +156,8 @@ export async function createAgent(data: {
   avatar_emoji: string;
   sprite_number?: number | null;
   personality: string | null;
+  persona_profile_id?: string | null;
+  persona_enabled?: number;
   workflow_pack_key?: WorkflowPackKey;
 }): Promise<Agent> {
   const j = (await post("/api/agents", data)) as { ok: boolean; agent: Agent };

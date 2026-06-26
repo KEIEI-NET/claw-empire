@@ -1,7 +1,10 @@
 import type { Agent, Department } from "../../types";
+import type { UiLanguage } from "../../i18n";
 import { localeName } from "../../i18n";
 import AgentAvatar from "../AgentAvatar";
 import { ROLE_BADGE, ROLE_LABEL, STATUS_DOT } from "./constants";
+import { usePersonas } from "../persona/usePersonas";
+import { personaDisplayName } from "../persona/personaUtils";
 import type { Translator } from "./types";
 
 interface AgentCardProps {
@@ -35,6 +38,11 @@ export default function AgentCard({
 }: AgentCardProps) {
   const isDeleting = confirmDeleteId === agent.id;
   const dept = departments.find((d) => d.id === agent.department_id);
+
+  const { byId: personaById } = usePersonas();
+  const persona =
+    agent.persona_profile_id && agent.persona_profile_id !== "base" ? personaById[agent.persona_profile_id] : null;
+  const personaOn = Number(agent.persona_enabled ?? 1) === 1;
 
   return (
     <div
@@ -73,6 +81,20 @@ export default function AgentCard({
                 style={{ background: "var(--th-bg-surface)", color: "var(--th-text-muted)" }}
               >
                 {dept.icon} {localeName(locale, dept)}
+              </span>
+            )}
+            {persona && (
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded-md border font-medium"
+                title={personaDisplayName(locale as UiLanguage, persona)}
+                style={{
+                  borderColor: persona.accent_color || "var(--th-card-border)",
+                  color: personaOn ? persona.accent_color || "var(--th-text-secondary)" : "var(--th-text-muted)",
+                  opacity: personaOn ? 1 : 0.6,
+                }}
+              >
+                {persona.avatar_emoji} {personaDisplayName(locale as UiLanguage, persona)}
+                {!personaOn ? " · OFF" : ""}
               </span>
             )}
           </div>
