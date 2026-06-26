@@ -51,24 +51,44 @@ function personaName(lang: string, p: PersonaRow): string {
   if (lang === "ja" && p.name_ja) return p.name_ja;
   if (lang === "ko" && p.name_ko) return p.name_ko;
   if (lang === "zh" && p.name_zh) return p.name_zh;
-  return p.name || p.name_ja || "";
+  // English / unknown lang: use the canonical (English) name only.
+  return p.name || "";
+}
+
+// Memoized global switch — it only changes via explicit admin action, so we
+// avoid re-querying settings on every prompt build (N agents per meeting).
+// Call invalidatePersonaInjectionCache() after updating the setting.
+let _globalSwitchCache: boolean | null = null;
+
+export function invalidatePersonaInjectionCache(): void {
+  _globalSwitchCache = null;
 }
 
 /** Layer ③: global master switch. Default ON when the setting is absent. */
 export function isPersonaInjectionEnabled(db: DbLike): boolean {
+  if (_globalSwitchCache !== null) return _globalSwitchCache;
   const row = db.prepare("SELECT value FROM settings WHERE key = 'personaInjectionEnabled'").get() as
     | { value?: unknown }
     | undefined;
-  if (!row || row.value == null) return true;
-  const raw = String(row.value).trim();
-  try {
-    const parsed = JSON.parse(raw);
-    if (typeof parsed === "boolean") return parsed;
-  } catch {
-    /* not JSON */
+  let result = true;
+  if (row && row.value != null) {
+    const raw = String(row.value).trim();
+    let parsedBool: boolean | null = null;
+    try {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === "boolean") parsedBool = parsed;
+    } catch {
+      /* not JSON */
+    }
+    if (parsedBool !== null) {
+      result = parsedBool;
+    } else {
+      const lower = raw.toLowerCase();
+      result = lower !== "false" && lower !== "0" && lower !== "off";
+    }
   }
-  const lower = raw.toLowerCase();
-  return lower !== "false" && lower !== "0" && lower !== "off";
+  _globalSwitchCache = result;
+  return result;
 }
 
 /**

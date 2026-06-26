@@ -4,6 +4,7 @@ import {
   encryptMessengerChannelsForStorage,
 } from "../../../messenger/token-crypto.ts";
 import { syncOfficePackAgentsForPack } from "../collab/office-pack-agent-hydration.ts";
+import { invalidatePersonaInjectionCache } from "../../workflow/core/persona-prompt.ts";
 
 const MESSENGER_SETTINGS_KEY = "messengerChannels";
 const OFFICE_PACK_PROFILES_KEY = "officePackProfiles";
@@ -155,6 +156,9 @@ export function registerOpsSettingsStatsRoutes(ctx: RuntimeContext): void {
           markSeedInitDone();
         }
         upsert.run(key, typeof value === "string" ? value : JSON.stringify(value));
+      }
+      if ("personaInjectionEnabled" in (body as Record<string, unknown>)) {
+        invalidatePersonaInjectionCache();
       }
       if (selectedOfficePackInPayload !== undefined) {
         maybeHydratePackOnFirstSelection(selectedOfficePackInPayload, officePackProfilesInPayload);

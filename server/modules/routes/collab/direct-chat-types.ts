@@ -9,6 +9,8 @@ export interface AgentRow {
   role: string;
   acts_as_planning_leader?: number | null;
   personality: string | null;
+  persona_profile_id?: string | null;
+  persona_enabled?: number | null;
   status: string;
   department_id: string | null;
   current_task_id: string | null;
