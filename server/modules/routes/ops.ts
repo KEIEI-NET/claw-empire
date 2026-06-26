@@ -3,6 +3,7 @@ import { INBOX_WEBHOOK_SECRET, PKG_VERSION } from "../../config/runtime.ts";
 
 import { registerOpsMessageRoutes } from "./ops/messages.ts";
 import { registerApiProviderRoutes } from "./ops/api-providers.ts";
+import { registerPersonaRoutes } from "./ops/personas.ts";
 import { registerOpsSettingsStatsRoutes } from "./ops/settings-stats.ts";
 import { prettyStreamJson } from "./ops/terminal/pretty-stream-json.ts";
 import { registerTaskTerminalRoutes } from "./ops/terminal/routes.ts";
@@ -221,6 +222,11 @@ export function registerRoutesPartC(ctx: RuntimeContext): RouteOpsExports {
   // API Providers (direct API key-based LLM access)
   // ---------------------------------------------------------------------------
   registerApiProviderRoutes({
+    app,
+    db,
+    nowMs,
+  });
+  registerPersonaRoutes({
     app,
     db,
     nowMs,

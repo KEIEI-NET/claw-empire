@@ -328,13 +328,21 @@ export function registerAgentCrudRoutes(ctx: RuntimeContext): void {
       const sprite_number =
         typeof body.sprite_number === "number" && body.sprite_number > 0 ? body.sprite_number : null;
       const personality = typeof body.personality === "string" ? body.personality.trim() || null : null;
+      let persona_profile_id: string | null = null;
+      if (typeof body.persona_profile_id === "string" && body.persona_profile_id && body.persona_profile_id !== "base") {
+        const personaExists = db
+          .prepare("SELECT 1 FROM persona_profiles WHERE id = ? AND enabled = 1")
+          .get(body.persona_profile_id);
+        if (personaExists) persona_profile_id = body.persona_profile_id;
+      }
+      const persona_enabled = Number(body.persona_enabled) === 0 ? 0 : 1;
 
       const id = randomUUID();
       try {
         if (hasAgentWorkflowPackColumn) {
           db.prepare(
-            `INSERT INTO agents (id, name, name_ko, name_ja, name_zh, department_id, workflow_pack_key, role, cli_provider, avatar_emoji, sprite_number, personality)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO agents (id, name, name_ko, name_ja, name_zh, department_id, workflow_pack_key, role, cli_provider, avatar_emoji, sprite_number, personality, persona_profile_id, persona_enabled)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           ).run(
             id,
             name,
@@ -348,11 +356,13 @@ export function registerAgentCrudRoutes(ctx: RuntimeContext): void {
             avatar_emoji,
             sprite_number,
             personality,
+            persona_profile_id,
+            persona_enabled,
           );
         } else {
           db.prepare(
-            `INSERT INTO agents (id, name, name_ko, name_ja, name_zh, department_id, role, cli_provider, avatar_emoji, sprite_number, personality)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO agents (id, name, name_ko, name_ja, name_zh, department_id, role, cli_provider, avatar_emoji, sprite_number, personality, persona_profile_id, persona_enabled)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           ).run(
             id,
             name,
@@ -365,6 +375,8 @@ export function registerAgentCrudRoutes(ctx: RuntimeContext): void {
             avatar_emoji,
             sprite_number,
             personality,
+            persona_profile_id,
+            persona_enabled,
           );
         }
       } catch (err: any) {
@@ -563,6 +575,22 @@ export function registerAgentCrudRoutes(ctx: RuntimeContext): void {
       }
     }
 
+    // Persona assignment validation/normalization.
+    if ("persona_profile_id" in body) {
+      const v = body.persona_profile_id;
+      if (v === "" || v === null || typeof v === "undefined") {
+        body.persona_profile_id = null;
+      } else if (typeof v !== "string") {
+        return res.status(400).json({ error: "invalid_persona_profile_id" });
+      } else if (v !== "base") {
+        const exists = db.prepare("SELECT 1 FROM persona_profiles WHERE id = ? AND enabled = 1").get(v);
+        if (!exists) return res.status(400).json({ error: "persona_not_found" });
+      }
+    }
+    if ("persona_enabled" in body) {
+      body.persona_enabled = Number(body.persona_enabled) === 0 ? 0 : 1;
+    }
+
     const allowedFields = [
       "name",
       "name_ko",
@@ -580,6 +608,8 @@ export function registerAgentCrudRoutes(ctx: RuntimeContext): void {
       "avatar_emoji",
       "sprite_number",
       "personality",
+      "persona_profile_id",
+      "persona_enabled",
       "status",
       "current_task_id",
       "acts_as_planning_leader",
