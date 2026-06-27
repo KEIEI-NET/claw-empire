@@ -115,4 +115,42 @@ describe("persona-prompt", () => {
   it("returns '' when both personality and persona are empty (OFF-time parity)", () => {
     expect(buildAgentIdentityBlock(db, agent({ personality: "" }), "ja")).toBe("");
   });
+
+  // The exact prompt fragment the codebase emitted before personas existed.
+  // Phase 6 contract: whenever injection is OFF (any of the 3 layers, or base),
+  // buildAgentIdentityBlock must reproduce this byte-for-byte.
+  const legacyIdentity = (personality: string | null | undefined): string => {
+    const p = typeof personality === "string" ? personality.trim() : "";
+    return p ? `Personality: ${p}` : "";
+  };
+
+  describe("legacy prompt parity when persona injection is OFF", () => {
+    const cases: Array<{ label: string; over: Record<string, unknown> }> = [
+      { label: "base sentinel", over: { persona_profile_id: "base" } },
+      { label: "NULL persona", over: { persona_profile_id: null } },
+      { label: "per-agent toggle off (layer 2)", over: { persona_profile_id: "steve-jobs", persona_enabled: 0 } },
+      { label: "missing/deleted profile id", over: { persona_profile_id: "does-not-exist" } },
+    ];
+
+    for (const lang of ["ja", "en", "ko", "zh"]) {
+      for (const { label, over } of cases) {
+        it(`matches legacy output — ${label} [${lang}], with personality`, () => {
+          const a = agent(over);
+          expect(buildAgentIdentityBlock(db, a, lang)).toBe(legacyIdentity(a.personality));
+        });
+        it(`matches legacy output — ${label} [${lang}], no personality`, () => {
+          const a = agent({ ...over, personality: "" });
+          expect(buildAgentIdentityBlock(db, a, lang)).toBe(legacyIdentity(a.personality));
+        });
+      }
+    }
+
+    it("matches legacy output when the global switch (layer 3) is OFF, even with a valid persona", () => {
+      db.prepare("INSERT INTO settings (key, value) VALUES ('personaInjectionEnabled', 'false')").run();
+      invalidatePersonaInjectionCache();
+      const a = agent({ persona_profile_id: "steve-jobs", persona_enabled: 1 });
+      expect(buildAgentIdentityBlock(db, a, "ja")).toBe(legacyIdentity(a.personality));
+      expect(buildPersonaPromptBlock(db, a, "ja")).toBe("");
+    });
+  });
 });

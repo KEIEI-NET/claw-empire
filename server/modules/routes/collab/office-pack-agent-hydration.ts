@@ -48,13 +48,24 @@ function parseJsonSafe(value: unknown): unknown {
   }
 }
 
-function hasAgentWorkflowPackColumn(db: DbLike): boolean {
+function agentColumnNames(db: DbLike): Set<string> {
   try {
     const cols = db.prepare("PRAGMA table_info(agents)").all() as Array<{ name?: unknown }>;
-    return cols.some((col) => normalizeText(col.name) === "workflow_pack_key");
+    return new Set(cols.map((col) => normalizeText(col.name)));
   } catch {
-    return false;
+    return new Set();
   }
+}
+
+function hasAgentWorkflowPackColumn(db: DbLike): boolean {
+  return agentColumnNames(db).has("workflow_pack_key");
+}
+
+// Persona columns are added by a later migration; legacy/test schemas may lack
+// them, so insert paths must check before referencing them.
+function hasAgentPersonaColumns(db: DbLike): boolean {
+  const cols = agentColumnNames(db);
+  return cols.has("persona_profile_id") && cols.has("persona_enabled");
 }
 
 type OfficePackProfileAgent = {
@@ -72,6 +83,10 @@ type OfficePackProfileAgent = {
   avatar_emoji: string;
   sprite_number: number | null;
   personality: string | null;
+  // Optional persona overlay a pack may ship. null = base (no overlay);
+  // 'base' is normalized to null to match the agents CRUD contract.
+  persona_profile_id: string | null;
+  persona_enabled: number;
   created_at: number;
 };
 
@@ -116,8 +131,22 @@ function normalizeOfficePackProfileAgent(raw: unknown, nowMs: number): OfficePac
     avatar_emoji: normalizeText(obj.avatar_emoji) || "🤖",
     sprite_number: normalizeNullablePositiveInt(obj.sprite_number),
     personality: normalizeOptionalText(obj.personality),
+    persona_profile_id: normalizePersonaProfileId(obj.persona_profile_id),
+    persona_enabled: normalizePersonaEnabled(obj.persona_enabled),
     created_at: normalizePositiveInt(obj.created_at, nowMs),
   };
+}
+
+// 'base' (the no-overlay baseline) is stored as NULL, mirroring agents CRUD.
+function normalizePersonaProfileId(value: unknown): string | null {
+  const text = normalizeOptionalText(value);
+  return text && text.toLowerCase() !== "base" ? text : null;
+}
+
+// Defaults to enabled (1); only an explicit falsy/0 disables the overlay.
+function normalizePersonaEnabled(value: unknown): number {
+  if (value === 0 || value === false || value === "0" || value === "false") return 0;
+  return 1;
 }
 
 function normalizeOfficePackProfileDepartment(raw: unknown, nowMs: number): OfficePackProfileDepartment | null {
@@ -310,6 +339,78 @@ function ensureDepartmentExists(
   return normalizeText(inserted?.id) ? departmentId : null;
 }
 
+type AgentWriteOptions = {
+  includeWorkflowPackKey: boolean;
+  includePersona: boolean;
+  conflict: "ignore" | "upsert";
+};
+
+// Builds an agents INSERT (optionally an upsert) whose column set adapts to the
+// running schema: workflow_pack_key and the persona columns are only emitted
+// when present, so a single code path serves fresh, legacy, and test schemas.
+function buildAgentWrite(
+  agent: OfficePackProfileAgent,
+  packKey: WorkflowPackKey,
+  deptId: string | null,
+  opts: AgentWriteOptions,
+): { sql: string; values: unknown[] } {
+  const cols: string[] = ["id", "name", "name_ko", "name_ja", "name_zh", "department_id", "role"];
+  const values: unknown[] = [agent.id, agent.name, agent.name_ko, agent.name_ja, agent.name_zh, deptId, agent.role];
+
+  if (opts.includeWorkflowPackKey) {
+    cols.push("workflow_pack_key");
+    values.push(packKey);
+  }
+
+  cols.push("acts_as_planning_leader", "cli_provider", "avatar_emoji", "sprite_number", "personality");
+  values.push(agent.acts_as_planning_leader, agent.cli_provider, agent.avatar_emoji, agent.sprite_number, agent.personality);
+
+  if (opts.includePersona) {
+    cols.push("persona_profile_id", "persona_enabled");
+    values.push(agent.persona_profile_id, agent.persona_enabled);
+  }
+
+  cols.push("created_at", "cli_model", "cli_reasoning_level");
+  values.push(agent.created_at, agent.cli_model, agent.cli_reasoning_level);
+
+  const placeholders = cols.map(() => "?").join(", ");
+  // Lifecycle/stats columns are always literals — never client-controlled.
+  const verb = opts.conflict === "ignore" ? "INSERT OR IGNORE" : "INSERT";
+  let sql = `INSERT_VERB INTO agents (
+      ${cols.join(", ")}, status, current_task_id, stats_tasks_done, stats_xp
+    ) VALUES (${placeholders}, 'idle', NULL, 0, 0)`.replace("INSERT_VERB", verb);
+
+  if (opts.conflict === "upsert") {
+    const setParts = [
+      "name = excluded.name",
+      "name_ko = excluded.name_ko",
+      "name_ja = excluded.name_ja",
+      "name_zh = excluded.name_zh",
+      "department_id = excluded.department_id",
+      ...(opts.includeWorkflowPackKey ? ["workflow_pack_key = excluded.workflow_pack_key"] : []),
+      "role = excluded.role",
+      "acts_as_planning_leader = excluded.acts_as_planning_leader",
+      "cli_provider = excluded.cli_provider",
+      "avatar_emoji = excluded.avatar_emoji",
+      "sprite_number = COALESCE(excluded.sprite_number, agents.sprite_number)",
+      "personality = excluded.personality",
+      // Preserve a user's manual persona assignment when the pack ships none;
+      // a pack-declared persona (non-null) still wins.
+      ...(opts.includePersona
+        ? [
+            "persona_profile_id = COALESCE(excluded.persona_profile_id, agents.persona_profile_id)",
+            "persona_enabled = excluded.persona_enabled",
+          ]
+        : []),
+      "cli_model = excluded.cli_model",
+      "cli_reasoning_level = excluded.cli_reasoning_level",
+    ];
+    sql += `\n    ON CONFLICT(id) DO UPDATE SET\n      ${setParts.join(",\n      ")}`;
+  }
+
+  return { sql, values };
+}
+
 export function hydrateOfficePackAgentFromSettings(db: DbLike, agentId: string, nowMs: () => number): AgentRow | null {
   const normalizedAgentId = normalizeText(agentId);
   if (!normalizedAgentId) return null;
@@ -331,66 +432,14 @@ export function hydrateOfficePackAgentFromSettings(db: DbLike, agentId: string, 
   if (!found) return null;
 
   const deptId = ensureDepartmentExists(db, found.packKey, found.agent.department_id, found.department, now);
-  const includeWorkflowPackKey = hasAgentWorkflowPackColumn(db);
 
   try {
-    if (includeWorkflowPackKey) {
-      db.prepare(
-        `
-        INSERT OR IGNORE INTO agents (
-          id, name, name_ko, name_ja, name_zh, department_id, role,
-          workflow_pack_key,
-          acts_as_planning_leader,
-          cli_provider, avatar_emoji, sprite_number, personality, status, current_task_id,
-          stats_tasks_done, stats_xp, created_at, cli_model, cli_reasoning_level
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'idle', NULL, 0, 0, ?, ?, ?)
-      `,
-      ).run(
-        found.agent.id,
-        found.agent.name,
-        found.agent.name_ko,
-        found.agent.name_ja,
-        found.agent.name_zh,
-        deptId,
-        found.agent.role,
-        found.packKey,
-        found.agent.acts_as_planning_leader,
-        found.agent.cli_provider,
-        found.agent.avatar_emoji,
-        found.agent.sprite_number,
-        found.agent.personality,
-        found.agent.created_at,
-        found.agent.cli_model,
-        found.agent.cli_reasoning_level,
-      );
-    } else {
-      db.prepare(
-        `
-        INSERT OR IGNORE INTO agents (
-          id, name, name_ko, name_ja, name_zh, department_id, role,
-          acts_as_planning_leader,
-          cli_provider, avatar_emoji, sprite_number, personality, status, current_task_id,
-          stats_tasks_done, stats_xp, created_at, cli_model, cli_reasoning_level
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'idle', NULL, 0, 0, ?, ?, ?)
-      `,
-      ).run(
-        found.agent.id,
-        found.agent.name,
-        found.agent.name_ko,
-        found.agent.name_ja,
-        found.agent.name_zh,
-        deptId,
-        found.agent.role,
-        found.agent.acts_as_planning_leader,
-        found.agent.cli_provider,
-        found.agent.avatar_emoji,
-        found.agent.sprite_number,
-        found.agent.personality,
-        found.agent.created_at,
-        found.agent.cli_model,
-        found.agent.cli_reasoning_level,
-      );
-    }
+    const { sql, values } = buildAgentWrite(found.agent, found.packKey, deptId, {
+      includeWorkflowPackKey: hasAgentWorkflowPackColumn(db),
+      includePersona: hasAgentPersonaColumns(db),
+      conflict: "ignore",
+    });
+    db.prepare(sql).run(...(values as never[]));
   } catch {
     return null;
   }
@@ -407,96 +456,13 @@ function upsertOfficePackProfileAgent(
   now: number,
 ): number {
   const deptId = ensureDepartmentExists(db, packKey, agent.department_id, department, now);
-  const includeWorkflowPackKey = hasAgentWorkflowPackColumn(db);
   try {
-    const result = includeWorkflowPackKey
-      ? (db
-          .prepare(
-            `
-        INSERT INTO agents (
-          id, name, name_ko, name_ja, name_zh, department_id, role,
-          workflow_pack_key,
-          acts_as_planning_leader,
-          cli_provider, avatar_emoji, sprite_number, personality, status, current_task_id,
-          stats_tasks_done, stats_xp, created_at, cli_model, cli_reasoning_level
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'idle', NULL, 0, 0, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-          name = excluded.name,
-          name_ko = excluded.name_ko,
-          name_ja = excluded.name_ja,
-          name_zh = excluded.name_zh,
-          department_id = excluded.department_id,
-          workflow_pack_key = excluded.workflow_pack_key,
-          role = excluded.role,
-          acts_as_planning_leader = excluded.acts_as_planning_leader,
-          cli_provider = excluded.cli_provider,
-          avatar_emoji = excluded.avatar_emoji,
-          sprite_number = COALESCE(excluded.sprite_number, agents.sprite_number),
-          personality = excluded.personality,
-          cli_model = excluded.cli_model,
-          cli_reasoning_level = excluded.cli_reasoning_level
-      `,
-          )
-          .run(
-            agent.id,
-            agent.name,
-            agent.name_ko,
-            agent.name_ja,
-            agent.name_zh,
-            deptId,
-            agent.role,
-            packKey,
-            agent.acts_as_planning_leader,
-            agent.cli_provider,
-            agent.avatar_emoji,
-            agent.sprite_number,
-            agent.personality,
-            agent.created_at,
-            agent.cli_model,
-            agent.cli_reasoning_level,
-          ) as { changes?: number } | undefined)
-      : (db
-          .prepare(
-            `
-        INSERT INTO agents (
-          id, name, name_ko, name_ja, name_zh, department_id, role,
-          acts_as_planning_leader,
-          cli_provider, avatar_emoji, sprite_number, personality, status, current_task_id,
-          stats_tasks_done, stats_xp, created_at, cli_model, cli_reasoning_level
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'idle', NULL, 0, 0, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-          name = excluded.name,
-          name_ko = excluded.name_ko,
-          name_ja = excluded.name_ja,
-          name_zh = excluded.name_zh,
-          department_id = excluded.department_id,
-          role = excluded.role,
-          acts_as_planning_leader = excluded.acts_as_planning_leader,
-          cli_provider = excluded.cli_provider,
-          avatar_emoji = excluded.avatar_emoji,
-          sprite_number = COALESCE(excluded.sprite_number, agents.sprite_number),
-          personality = excluded.personality,
-          cli_model = excluded.cli_model,
-          cli_reasoning_level = excluded.cli_reasoning_level
-      `,
-          )
-          .run(
-            agent.id,
-            agent.name,
-            agent.name_ko,
-            agent.name_ja,
-            agent.name_zh,
-            deptId,
-            agent.role,
-            agent.acts_as_planning_leader,
-            agent.cli_provider,
-            agent.avatar_emoji,
-            agent.sprite_number,
-            agent.personality,
-            agent.created_at,
-            agent.cli_model,
-            agent.cli_reasoning_level,
-          ) as { changes?: number } | undefined);
+    const { sql, values } = buildAgentWrite(agent, packKey, deptId, {
+      includeWorkflowPackKey: hasAgentWorkflowPackColumn(db),
+      includePersona: hasAgentPersonaColumns(db),
+      conflict: "upsert",
+    });
+    const result = db.prepare(sql).run(...(values as never[])) as { changes?: number } | undefined;
     return result?.changes ?? 0;
   } catch {
     return 0;
