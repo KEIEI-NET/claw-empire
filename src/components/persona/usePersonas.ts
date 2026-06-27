@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getPersonas } from "../../api";
 import type { PersonaProfile } from "../../types";
 
@@ -79,8 +79,11 @@ export function usePersonas(): UsePersonasResult {
     };
   }, [sync]);
 
-  const byId: Record<string, PersonaProfile> = {};
-  for (const p of personas) byId[p.id] = p;
+  const byId = useMemo(() => {
+    const m: Record<string, PersonaProfile> = {};
+    for (const p of personas) m[p.id] = p;
+    return m;
+  }, [personas]);
 
   return { personas, byId, loading, error, reload };
 }

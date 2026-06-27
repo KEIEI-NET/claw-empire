@@ -542,7 +542,7 @@ export default function AppMainLayout({
 
             {view === "skills" && <SkillsLibrary agents={agents} />}
 
-            {view === "personas" && <PersonaLibrary agents={agents} />}
+            {view === "personas" && <PersonaLibrary agents={agents} onAgentsChanged={onAgentsChange} />}
 
             {view === "settings" && (
               <SettingsPanel

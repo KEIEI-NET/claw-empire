@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../i18n";
 import * as api from "../api";
 import type { Agent, PersonaProfile } from "../types";
@@ -15,9 +15,12 @@ import PersonaEditModal from "./persona/PersonaEditModal";
 
 interface PersonaLibraryProps {
   agents: Agent[];
+  // Called after a persona mutation so the parent can refresh agents (the
+  // server reverts agents assigned to a deleted persona back to NULL).
+  onAgentsChanged?: () => void;
 }
 
-export default function PersonaLibrary({ agents }: PersonaLibraryProps) {
+export default function PersonaLibrary({ agents, onAgentsChanged }: PersonaLibraryProps) {
   const { t, language } = useI18n();
   const { personas, loading, error, reload } = usePersonas();
 
@@ -27,6 +30,12 @@ export default function PersonaLibrary({ agents }: PersonaLibraryProps) {
   const [editing, setEditing] = useState<PersonaProfile | null | "new">(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [libError, setLibError] = useState<string | null>(null);
+
+  // Clear a pending delete-confirm when the visible set changes under it.
+  useEffect(() => {
+    setConfirmDelete(null);
+  }, [activeCat, search]);
 
   // agents assigned per persona id
   const assignedCount = useMemo(() => {
@@ -48,30 +57,35 @@ export default function PersonaLibrary({ agents }: PersonaLibraryProps) {
     return m;
   }, [personas]);
 
+  // Precompute one-liner + tags once per persona (avoids re-parsing JSON in
+  // both the filter and the render loop for 58+ cards).
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     return personas
       .filter((p) => Number(p.is_base) !== 1 && p.category !== "base")
       .filter((p) => activeCat === "all" || p.category === activeCat)
-      .filter((p) => {
+      .map((p) => ({ p, oneLiner: pickPersonaI18n(language, p.one_liner_i18n), tags: parseTags(p.tags_json) }))
+      .filter(({ p, oneLiner, tags }) => {
         if (!q) return true;
-        const hay = `${p.name} ${p.name_ja ?? ""} ${pickPersonaI18n(language, p.one_liner_i18n)} ${parseTags(p.tags_json).join(" ")}`.toLowerCase();
-        return hay.includes(q);
+        return `${p.name} ${p.name_ja ?? ""} ${oneLiner} ${tags.join(" ")}`.toLowerCase().includes(q);
       });
   }, [personas, activeCat, search, language]);
 
   const afterMutation = async () => {
     invalidatePersonaCache();
     await reload();
+    onAgentsChanged?.();
   };
 
   const handleDuplicate = async (p: PersonaProfile) => {
     setBusyId(p.id);
+    setLibError(null);
     try {
       await api.duplicatePersona(p.id);
       await afterMutation();
     } catch (err) {
       console.error("duplicate failed", err);
+      setLibError(t({ ko: "복제 실패", en: "Duplicate failed", ja: "複製に失敗しました", zh: "复制失败" }));
     } finally {
       setBusyId(null);
     }
@@ -79,12 +93,14 @@ export default function PersonaLibrary({ agents }: PersonaLibraryProps) {
 
   const handleDelete = async (id: string) => {
     setBusyId(id);
+    setLibError(null);
     try {
       await api.deletePersona(id);
       setConfirmDelete(null);
       await afterMutation();
     } catch (err) {
       console.error("delete failed", err);
+      setLibError(t({ ko: "삭제 실패", en: "Delete failed", ja: "削除に失敗しました", zh: "删除失败" }));
     } finally {
       setBusyId(null);
     }
@@ -136,9 +152,10 @@ export default function PersonaLibrary({ agents }: PersonaLibraryProps) {
         ))}
       </div>
 
-      {error && (
-        <div className="text-sm mb-3" style={{ color: "var(--th-text-muted)" }}>
-          {t({ ko: "목록을 불러오지 못했습니다.", en: "Failed to load.", ja: "読み込みに失敗しました。", zh: "加载失败。" })}
+      {(error || libError) && (
+        <div className="text-sm mb-3" style={{ color: libError ? "#f87171" : "var(--th-text-muted)" }}>
+          {libError ??
+            t({ ko: "목록을 불러오지 못했습니다.", en: "Failed to load.", ja: "読み込みに失敗しました。", zh: "加载失败。" })}
         </div>
       )}
       {loading && personas.length === 0 && (
@@ -148,10 +165,9 @@ export default function PersonaLibrary({ agents }: PersonaLibraryProps) {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {visible.map((p) => {
+        {visible.map(({ p, oneLiner, tags: allTags }) => {
           const isPreset = Number(p.is_preset) === 1;
-          const oneLiner = pickPersonaI18n(language, p.one_liner_i18n);
-          const tags = parseTags(p.tags_json).slice(0, 4);
+          const tags = allTags.slice(0, 4);
           const count = assignedCount[p.id] ?? 0;
           return (
             <div
@@ -204,10 +220,11 @@ export default function PersonaLibrary({ agents }: PersonaLibraryProps) {
               )}
 
               <div className="flex items-center gap-2 mt-3 pt-2.5 text-xs" style={{ borderTop: "1px solid var(--th-card-border)" }}>
-                <button onClick={() => setDetail(p)} style={{ color: "var(--th-text-secondary)" }}>
+                <button type="button" onClick={() => setDetail(p)} style={{ color: "var(--th-text-secondary)" }}>
                   👁 {t({ ko: "상세", en: "Detail", ja: "詳細", zh: "详情" })}
                 </button>
                 <button
+                  type="button"
                   onClick={() => handleDuplicate(p)}
                   disabled={busyId === p.id}
                   style={{ color: "var(--th-text-secondary)" }}
@@ -216,20 +233,36 @@ export default function PersonaLibrary({ agents }: PersonaLibraryProps) {
                 </button>
                 {!isPreset && (
                   <>
-                    <button onClick={() => setEditing(p)} style={{ color: "var(--th-text-secondary)" }}>
+                    <button type="button" onClick={() => setEditing(p)} style={{ color: "var(--th-text-secondary)" }}>
                       ✏️ {t({ ko: "편집", en: "Edit", ja: "編集", zh: "编辑" })}
                     </button>
                     {confirmDelete === p.id ? (
                       <span className="ml-auto flex items-center gap-1">
-                        <button onClick={() => handleDelete(p.id)} disabled={busyId === p.id} style={{ color: "#f87171" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(p.id)}
+                          disabled={busyId === p.id}
+                          style={{ color: "#f87171" }}
+                        >
                           {t({ ko: "삭제", en: "Delete", ja: "削除", zh: "删除" })}
                         </button>
-                        <button onClick={() => setConfirmDelete(null)} style={{ color: "var(--th-text-muted)" }}>
+                        <button
+                          type="button"
+                          aria-label={t({ ko: "취소", en: "Cancel", ja: "キャンセル", zh: "取消" })}
+                          onClick={() => setConfirmDelete(null)}
+                          style={{ color: "var(--th-text-muted)" }}
+                        >
                           ✕
                         </button>
                       </span>
                     ) : (
-                      <button onClick={() => setConfirmDelete(p.id)} className="ml-auto" style={{ color: "var(--th-text-muted)" }}>
+                      <button
+                        type="button"
+                        aria-label={t({ ko: "삭제", en: "Delete", ja: "削除", zh: "删除" })}
+                        onClick={() => setConfirmDelete(p.id)}
+                        className="ml-auto"
+                        style={{ color: "var(--th-text-muted)" }}
+                      >
                         🗑
                       </button>
                     )}
@@ -250,6 +283,7 @@ export default function PersonaLibrary({ agents }: PersonaLibraryProps) {
       {detail && <PersonaDetailModal persona={detail} onClose={() => setDetail(null)} />}
       {editing !== null && (
         <PersonaEditModal
+          key={editing === "new" ? "new" : editing.id}
           persona={editing === "new" ? null : editing}
           onClose={() => setEditing(null)}
           onSaved={async () => {
@@ -267,11 +301,29 @@ function PersonaDetailModal({ persona, onClose }: { persona: PersonaProfile; onC
   const traits = pickPersonaI18n(language, persona.traits_i18n);
   const background = pickPersonaI18n(language, persona.background_i18n);
   const oneLiner = pickPersonaI18n(language, persona.one_liner_i18n);
+  const tags = parseTags(persona.tags_json);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }}>
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.5)" }}
+      onClick={onClose}
+    >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={personaDisplayName(language, persona)}
         className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl p-5"
         style={{ background: "var(--th-bg-sidebar)", border: `1px solid ${persona.accent_color || "var(--th-card-border)"}` }}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -285,7 +337,12 @@ function PersonaDetailModal({ persona, onClose }: { persona: PersonaProfile; onC
               </div>
             </div>
           </div>
-          <button onClick={onClose} style={{ color: "var(--th-text-muted)" }}>
+          <button
+            type="button"
+            aria-label={t({ ko: "닫기", en: "Close", ja: "閉じる", zh: "关闭" })}
+            onClick={onClose}
+            style={{ color: "var(--th-text-muted)" }}
+          >
             ✕
           </button>
         </div>
@@ -309,9 +366,9 @@ function PersonaDetailModal({ persona, onClose }: { persona: PersonaProfile; onC
             </div>
           </div>
         )}
-        {parseTags(persona.tags_json).length > 0 && (
+        {tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-3">
-            {parseTags(persona.tags_json).map((tag, i) => (
+            {tags.map((tag, i) => (
               <span
                 key={`${tag}-${i}`}
                 className="px-1.5 py-0.5 rounded text-[10px] font-mono"

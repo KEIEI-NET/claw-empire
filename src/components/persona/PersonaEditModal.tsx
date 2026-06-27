@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import * as api from "../../api";
 import type { PersonaProfile } from "../../types";
@@ -8,7 +8,7 @@ interface PersonaEditModalProps {
   // null = create new; a profile = edit existing (must be a custom, non-preset)
   persona: PersonaProfile | null;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: () => void | Promise<void>;
 }
 
 function parseI18nField(jsonStr: string | null | undefined): { ja: string; en: string } {
@@ -51,6 +51,35 @@ export default function PersonaEditModal({ persona, onClose, onSaved }: PersonaE
 
   const update = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
+  // Close on Escape.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !saving) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, saving]);
+
+  // Map server error codes to localized, user-facing messages.
+  const localizeError = (err: unknown): string => {
+    const code = api.isApiRequestError(err) ? (err.code ?? err.message) : err instanceof Error ? err.message : "save_failed";
+    switch (code) {
+      case "name_required":
+        return t({ ko: "이름은 필수입니다.", en: "Name is required.", ja: "名前は必須です。", zh: "名称为必填项。" });
+      case "preset_protected":
+        return t({
+          ko: "프리셋은 편집할 수 없습니다. 복제 후 수정하세요.",
+          en: "Presets can't be edited. Duplicate it first.",
+          ja: "プリセットは編集できません。複製してから編集してください。",
+          zh: "预设无法编辑，请先复制。",
+        });
+      case "persona_not_found":
+        return t({ ko: "페르소나를 찾을 수 없습니다.", en: "Persona not found.", ja: "ペルソナが見つかりません。", zh: "未找到人格。" });
+      default:
+        return t({ ko: "저장에 실패했습니다.", en: "Failed to save.", ja: "保存に失敗しました。", zh: "保存失败。" });
+    }
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) {
       setError(t({ ko: "이름은 필수입니다.", en: "Name is required.", ja: "名前は必須です。", zh: "名称为必填项。" }));
@@ -70,6 +99,8 @@ export default function PersonaEditModal({ persona, onClose, onSaved }: PersonaE
         .filter(Boolean),
       one_liner: { ja: form.one_liner_ja.trim(), en: form.one_liner_en.trim() },
       traits: { ja: form.traits_ja.trim(), en: form.traits_en.trim() },
+      // Background has no dedicated input yet; we round-trip the existing value
+      // (parsed into the form at mount) so editing never drops it.
       background: { ja: form.background_ja.trim(), en: form.background_en.trim() },
     };
     try {
@@ -78,9 +109,10 @@ export default function PersonaEditModal({ persona, onClose, onSaved }: PersonaE
       } else {
         await api.createPersona(payload);
       }
-      onSaved();
+      await onSaved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "save_failed");
+      console.error("persona save failed", err);
+      setError(localizeError(err));
     } finally {
       setSaving(false);
     }
@@ -95,35 +127,59 @@ export default function PersonaEditModal({ persona, onClose, onSaved }: PersonaE
   const labelCls = "block text-xs mb-1 font-medium";
   const labelStyle = { color: "var(--th-text-secondary)" } as const;
 
+  const titleId = "persona-edit-title";
+
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }}>
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.5)" }}
+      onClick={() => {
+        if (!saving) onClose();
+      }}
+    >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className="w-full max-w-2xl max-h-[88vh] overflow-y-auto rounded-2xl p-5"
         style={{ background: "var(--th-bg-sidebar)", border: "1px solid var(--th-card-border)" }}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-bold" style={{ color: "var(--th-text-heading)" }}>
+          <h3 id={titleId} className="text-base font-bold" style={{ color: "var(--th-text-heading)" }}>
             {isEdit
               ? t({ ko: "페르소나 편집", en: "Edit Persona", ja: "ペルソナを編集", zh: "编辑人格" })
               : t({ ko: "새 페르소나", en: "New Persona", ja: "新規ペルソナ", zh: "新建人格" })}
           </h3>
-          <button onClick={onClose} style={{ color: "var(--th-text-muted)" }}>
+          <button
+            type="button"
+            aria-label={t({ ko: "닫기", en: "Close", ja: "閉じる", zh: "关闭" })}
+            onClick={onClose}
+            style={{ color: "var(--th-text-muted)" }}
+          >
             ✕
           </button>
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <div>
-            <label className={labelCls} style={labelStyle}>
+            <label htmlFor="pf-name" className={labelCls} style={labelStyle}>
               {t({ ko: "이름 (영문)", en: "Name (EN)", ja: "名前（英）", zh: "名称（英）" })} *
             </label>
-            <input className={inputCls} style={inputStyle} value={form.name} onChange={(e) => update({ name: e.target.value })} />
+            <input
+              id="pf-name"
+              className={inputCls}
+              style={inputStyle}
+              value={form.name}
+              onChange={(e) => update({ name: e.target.value })}
+            />
           </div>
           <div>
-            <label className={labelCls} style={labelStyle}>
+            <label htmlFor="pf-name-ja" className={labelCls} style={labelStyle}>
               {t({ ko: "이름 (일문)", en: "Name (JA)", ja: "名前（日）", zh: "名称（日）" })}
             </label>
             <input
+              id="pf-name-ja"
               className={inputCls}
               style={inputStyle}
               value={form.name_ja}
@@ -150,10 +206,11 @@ export default function PersonaEditModal({ persona, onClose, onSaved }: PersonaE
           </div>
           <div className="flex gap-3">
             <div className="w-20">
-              <label className={labelCls} style={labelStyle}>
+              <label htmlFor="pf-emoji" className={labelCls} style={labelStyle}>
                 {t({ ko: "이모지", en: "Emoji", ja: "絵文字", zh: "表情" })}
               </label>
               <input
+                id="pf-emoji"
                 className={inputCls}
                 style={inputStyle}
                 value={form.avatar_emoji}
@@ -177,18 +234,25 @@ export default function PersonaEditModal({ persona, onClose, onSaved }: PersonaE
         </div>
 
         <div className="mt-3">
-          <label className={labelCls} style={labelStyle}>
+          <label htmlFor="pf-tags" className={labelCls} style={labelStyle}>
             {t({ ko: "태그 (쉼표 구분)", en: "Tags (comma-separated)", ja: "タグ（カンマ区切り）", zh: "标签（逗号分隔）" })}
           </label>
-          <input className={inputCls} style={inputStyle} value={form.tags} onChange={(e) => update({ tags: e.target.value })} />
+          <input
+            id="pf-tags"
+            className={inputCls}
+            style={inputStyle}
+            value={form.tags}
+            onChange={(e) => update({ tags: e.target.value })}
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 mt-3">
           <div>
-            <label className={labelCls} style={labelStyle}>
+            <label htmlFor="pf-oneliner-ja" className={labelCls} style={labelStyle}>
               {t({ ko: "한 줄 소개 (일)", en: "One-liner (JA)", ja: "一行紹介（日）", zh: "一句话（日）" })}
             </label>
             <input
+              id="pf-oneliner-ja"
               className={inputCls}
               style={inputStyle}
               value={form.one_liner_ja}
@@ -196,10 +260,11 @@ export default function PersonaEditModal({ persona, onClose, onSaved }: PersonaE
             />
           </div>
           <div>
-            <label className={labelCls} style={labelStyle}>
+            <label htmlFor="pf-oneliner-en" className={labelCls} style={labelStyle}>
               {t({ ko: "한 줄 소개 (영)", en: "One-liner (EN)", ja: "一行紹介（英）", zh: "一句话（英）" })}
             </label>
             <input
+              id="pf-oneliner-en"
               className={inputCls}
               style={inputStyle}
               value={form.one_liner_en}
@@ -210,10 +275,11 @@ export default function PersonaEditModal({ persona, onClose, onSaved }: PersonaE
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 mt-3">
           <div>
-            <label className={labelCls} style={labelStyle}>
+            <label htmlFor="pf-traits-ja" className={labelCls} style={labelStyle}>
               {t({ ko: "특성 (일)", en: "Traits (JA)", ja: "特性（日）", zh: "特性（日）" })}
             </label>
             <textarea
+              id="pf-traits-ja"
               rows={6}
               className={`${inputCls} resize-none`}
               style={inputStyle}
@@ -223,10 +289,11 @@ export default function PersonaEditModal({ persona, onClose, onSaved }: PersonaE
             />
           </div>
           <div>
-            <label className={labelCls} style={labelStyle}>
+            <label htmlFor="pf-traits-en" className={labelCls} style={labelStyle}>
               {t({ ko: "특성 (영)", en: "Traits (EN)", ja: "特性（英）", zh: "特性（英）" })}
             </label>
             <textarea
+              id="pf-traits-en"
               rows={6}
               className={`${inputCls} resize-none`}
               style={inputStyle}
@@ -245,6 +312,7 @@ export default function PersonaEditModal({ persona, onClose, onSaved }: PersonaE
 
         <div className="flex justify-end gap-2 mt-5">
           <button
+            type="button"
             onClick={onClose}
             className="px-4 py-1.5 rounded-lg text-sm"
             style={{ background: "var(--th-bg-surface)", color: "var(--th-text-secondary)" }}
@@ -252,6 +320,7 @@ export default function PersonaEditModal({ persona, onClose, onSaved }: PersonaE
             {t({ ko: "취소", en: "Cancel", ja: "キャンセル", zh: "取消" })}
           </button>
           <button
+            type="button"
             onClick={handleSave}
             disabled={saving}
             className="px-4 py-1.5 rounded-lg text-sm font-medium text-white"
