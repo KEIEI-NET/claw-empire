@@ -57,15 +57,18 @@ function agentColumnNames(db: DbLike): Set<string> {
   }
 }
 
-function hasAgentWorkflowPackColumn(db: DbLike): boolean {
-  return agentColumnNames(db).has("workflow_pack_key");
-}
+// Which optional columns the running agents schema actually has. Resolved with a
+// single PRAGMA so a sync over N agents doesn't re-probe the schema per agent.
+// `workflow_pack_key` and the persona columns are added by later migrations, so
+// legacy/test schemas may lack them and insert paths must check before use.
+type AgentSchemaFlags = { hasWorkflowPackKey: boolean; hasPersona: boolean };
 
-// Persona columns are added by a later migration; legacy/test schemas may lack
-// them, so insert paths must check before referencing them.
-function hasAgentPersonaColumns(db: DbLike): boolean {
+function agentSchemaFlags(db: DbLike): AgentSchemaFlags {
   const cols = agentColumnNames(db);
-  return cols.has("persona_profile_id") && cols.has("persona_enabled");
+  return {
+    hasWorkflowPackKey: cols.has("workflow_pack_key"),
+    hasPersona: cols.has("persona_profile_id") && cols.has("persona_enabled"),
+  };
 }
 
 type OfficePackProfileAgent = {
@@ -394,12 +397,14 @@ function buildAgentWrite(
       "avatar_emoji = excluded.avatar_emoji",
       "sprite_number = COALESCE(excluded.sprite_number, agents.sprite_number)",
       "personality = excluded.personality",
-      // Preserve a user's manual persona assignment when the pack ships none;
-      // a pack-declared persona (non-null) still wins.
+      // Preserve a user's manual persona assignment AND their enable/disable
+      // choice when the pack ships no persona; a pack-declared persona (non-null)
+      // overrides both. The persona_enabled guard mirrors the profile-id guard so
+      // a deliberate per-agent disable survives an otherwise-silent re-sync.
       ...(opts.includePersona
         ? [
             "persona_profile_id = COALESCE(excluded.persona_profile_id, agents.persona_profile_id)",
-            "persona_enabled = excluded.persona_enabled",
+            "persona_enabled = CASE WHEN excluded.persona_profile_id IS NOT NULL THEN excluded.persona_enabled ELSE agents.persona_enabled END",
           ]
         : []),
       "cli_model = excluded.cli_model",
@@ -434,9 +439,10 @@ export function hydrateOfficePackAgentFromSettings(db: DbLike, agentId: string, 
   const deptId = ensureDepartmentExists(db, found.packKey, found.agent.department_id, found.department, now);
 
   try {
+    const flags = agentSchemaFlags(db);
     const { sql, values } = buildAgentWrite(found.agent, found.packKey, deptId, {
-      includeWorkflowPackKey: hasAgentWorkflowPackColumn(db),
-      includePersona: hasAgentPersonaColumns(db),
+      includeWorkflowPackKey: flags.hasWorkflowPackKey,
+      includePersona: flags.hasPersona,
       conflict: "ignore",
     });
     db.prepare(sql).run(...(values as never[]));
@@ -454,12 +460,13 @@ function upsertOfficePackProfileAgent(
   agent: OfficePackProfileAgent,
   department: OfficePackProfileDepartment | null,
   now: number,
+  flags: AgentSchemaFlags,
 ): number {
   const deptId = ensureDepartmentExists(db, packKey, agent.department_id, department, now);
   try {
     const { sql, values } = buildAgentWrite(agent, packKey, deptId, {
-      includeWorkflowPackKey: hasAgentWorkflowPackColumn(db),
-      includePersona: hasAgentPersonaColumns(db),
+      includeWorkflowPackKey: flags.hasWorkflowPackKey,
+      includePersona: flags.hasPersona,
       conflict: "upsert",
     });
     const result = db.prepare(sql).run(...(values as never[])) as { changes?: number } | undefined;
@@ -480,6 +487,7 @@ export function syncOfficePackAgentsFromProfiles(
   let departmentsSynced = 0;
   let agentsSynced = 0;
   const now = nowMs();
+  const flags = agentSchemaFlags(db);
 
   for (const [rawPackKey, profileRaw] of Object.entries(root)) {
     if (!isWorkflowPackKey(rawPackKey)) continue;
@@ -503,7 +511,7 @@ export function syncOfficePackAgentsFromProfiles(
       : [];
     for (const agent of agents as OfficePackProfileAgent[]) {
       const matchedDept = agent.department_id ? (departmentById.get(agent.department_id) ?? null) : null;
-      agentsSynced += upsertOfficePackProfileAgent(db, rawPackKey, agent, matchedDept, now);
+      agentsSynced += upsertOfficePackProfileAgent(db, rawPackKey, agent, matchedDept, now, flags);
     }
   }
 
@@ -526,6 +534,7 @@ export function syncOfficePackAgentsForPack(
   let departmentsSynced = 0;
   let agentsSynced = 0;
   const now = nowMs();
+  const flags = agentSchemaFlags(db);
 
   const resolvedPackKey = isWorkflowPackKey(normalizedPackKey) ? normalizedPackKey : DEFAULT_WORKFLOW_PACK_KEY;
 
@@ -546,7 +555,7 @@ export function syncOfficePackAgentsForPack(
     : [];
   for (const agent of agents as OfficePackProfileAgent[]) {
     const matchedDept = agent.department_id ? (departmentById.get(agent.department_id) ?? null) : null;
-    agentsSynced += upsertOfficePackProfileAgent(db, resolvedPackKey, agent, matchedDept, now);
+    agentsSynced += upsertOfficePackProfileAgent(db, resolvedPackKey, agent, matchedDept, now, flags);
   }
 
   return { departmentsSynced, agentsSynced };

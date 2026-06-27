@@ -336,6 +336,32 @@ describe("persona propagation (Phase 6)", () => {
     expect(readPersona(db, "p-seed-1")).toEqual({ persona_profile_id: "warren-buffett", persona_enabled: 1 });
   });
 
+  it("upsert preserves a user's deliberate persona_enabled=0 when the pack ships none", () => {
+    db = createDbWithPersona();
+    const profiles = packWithAgent({}); // no persona declared
+    syncOfficePackAgentsFromProfiles(db, profiles, () => 1700000002000);
+    // User assigns a persona then disables the overlay (layer-2 OFF).
+    db.prepare("UPDATE agents SET persona_profile_id = 'warren-buffett', persona_enabled = 0 WHERE id = 'p-seed-1'").run();
+
+    // Re-sync must keep BOTH the assignment and the disabled toggle.
+    syncOfficePackAgentsFromProfiles(db, profiles, () => 1700000003000);
+    expect(readPersona(db, "p-seed-1")).toEqual({ persona_profile_id: "warren-buffett", persona_enabled: 0 });
+  });
+
+  it("a pack-declared persona still overrides both id and enabled on re-sync", () => {
+    db = createDbWithPersona();
+    syncOfficePackAgentsFromProfiles(db, packWithAgent({}), () => 1700000002000);
+    db.prepare("UPDATE agents SET persona_profile_id = 'warren-buffett', persona_enabled = 0 WHERE id = 'p-seed-1'").run();
+
+    // Pack now declares a persona with enabled=1 — it wins over the user's state.
+    syncOfficePackAgentsFromProfiles(
+      db,
+      packWithAgent({ persona_profile_id: "steve-jobs", persona_enabled: 1 }),
+      () => 1700000003000,
+    );
+    expect(readPersona(db, "p-seed-1")).toEqual({ persona_profile_id: "steve-jobs", persona_enabled: 1 });
+  });
+
   it("upsert lets a pack-declared persona override the existing assignment", () => {
     db = createDbWithPersona();
     syncOfficePackAgentsFromProfiles(db, packWithAgent({ persona_profile_id: "elon-musk" }), () => 1700000002000);
