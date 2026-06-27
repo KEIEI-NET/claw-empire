@@ -75,6 +75,13 @@ export function useAppLabels({
           ja: "スキル資料室",
           zh: "技能库",
         })}`;
+      case "personas":
+        return `🎭 ${pickLang(uiLanguage, {
+          ko: "페르소나 라이브러리",
+          en: "Persona Library",
+          ja: "ペルソナ・ライブラリ",
+          zh: "人格库",
+        })}`;
       case "settings":
         return `⚙️ ${pickLang(uiLanguage, {
           ko: "설정",
