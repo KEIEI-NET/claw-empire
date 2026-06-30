@@ -20,6 +20,67 @@ export interface ReflectionAgent {
   [key: string]: unknown;
 }
 
+// Tool/stream noise some CLI providers (e.g. codex) emit even in noTools mode.
+// Mirrors the leader-side normalizeConversationReply patterns, scoped to what a
+// short subordinate take can contain.
+const TOOL_NOISE_PATTERNS: RegExp[] = [
+  // A single JSON object carrying a tool/stream "type" field, with the field at
+  // ANY position (codex emits {"workdir":...,"type":"tool_use"} — type not first).
+  // [^{}\n] bounds the block to one object on one line → no ReDoS, no cross-object span.
+  /\{[^{}\n]*"type"\s*:\s*"(?:step_finish|step-finish|tool_use|tool_result|thinking|reasoning|text|content)"[^{}\n]*\}/gm,
+  /\[(?:tool|result|output|spawn_agent|agent_done|one-shot-error)[^\]]*\]/gi,
+  /^\[(?:init|usage|mcp|thread|reasoning|stdout|stderr|copilot|antigravity)\][^\n]*$/gim,
+];
+
+/** True when the text still looks like a raw JSON / structured tool payload. */
+function looksLikeStructuredPayload(text: string): boolean {
+  const s = text.trim();
+  if (s.startsWith("{")) {
+    if (s.endsWith("}")) {
+      try {
+        JSON.parse(s);
+        return true; // valid JSON object → not prose
+      } catch {
+        /* fall through to the shape heuristic */
+      }
+    }
+    // Opens like a JSON object with a quoted key, e.g. truncated {"workdir":"/tmp…
+    if (/^\{\s*"[\w-]+"\s*:/.test(s)) return true;
+  }
+  if (s.startsWith("[") && s.endsWith("]")) {
+    try {
+      JSON.parse(s);
+      return true;
+    } catch {
+      /* not valid JSON array prose */
+    }
+  }
+  return false;
+}
+
+/**
+ * Reduce a raw one-shot reply to a clean plain-text take, or "" when nothing
+ * usable remains. Strips tool/stream noise, drops bracket-only lines, collapses
+ * whitespace, rejects residual JSON payloads, and code-point-safely caps length.
+ */
+export function sanitizeReflectionText(raw: string | null | undefined, maxChars = 320): string {
+  let text = (raw ?? "").trim();
+  if (!text) return "";
+  text = text.replace(/^"(.*)"$/s, "$1"); // unwrap a fully-quoted string
+  for (const re of TOOL_NOISE_PATTERNS) text = text.replace(re, " ");
+  text = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !/^[{}[\],]+$/.test(line))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text || looksLikeStructuredPayload(text)) return "";
+  const chars = [...text];
+  if (chars.length > maxChars) text = chars.slice(0, maxChars - 1).join("").trimEnd() + "…";
+  return text;
+}
+
 // Memoized settings switch (mirrors isPersonaInjectionEnabled). Default ON.
 let _reflectionSwitchCache: boolean | null = null;
 
@@ -128,8 +189,10 @@ export function createSubordinateReflectionRunner(deps: ReflectionRunnerDeps) {
       timeoutMs: req.timeoutMs ?? DEFAULT_REFLECTION_TIMEOUT_MS,
       noTools: true,
     });
-    const text = (run?.text ?? "").trim();
-    if (!text) return null; // skip injection on empty/failed runs — keep the meeting clean
+    // Skip injection on empty/failed runs OR raw tool/JSON output — keep the
+    // minutes readable rather than persisting a provider's structured noise.
+    const text = sanitizeReflectionText(run?.text);
+    if (!text) return null;
     return { subordinate, text };
   }
 

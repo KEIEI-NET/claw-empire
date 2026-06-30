@@ -4,6 +4,7 @@ import {
   createSubordinateReflectionRunner,
   invalidateMeetingReflectionCache,
   isMeetingDelegateReflectionEnabled,
+  sanitizeReflectionText,
   selectMeetingSubordinate,
 } from "./subordinate-reflection.ts";
 
@@ -72,6 +73,62 @@ describe("selectMeetingSubordinate", () => {
   it("does not cross department boundaries", () => {
     addAgent(db, { id: "design-jr", dept: "design", role: "junior", status: "idle" });
     expect(selectMeetingSubordinate(db, "dev", "lead")).toBeNull();
+  });
+});
+
+describe("sanitizeReflectionText", () => {
+  it("passes clean prose through unchanged", () => {
+    const t = "WebSocket接続数の上限を先に数値で確認すべきです。";
+    expect(sanitizeReflectionText(t)).toBe(t);
+  });
+
+  it("rejects a raw JSON tool payload (the live codex case)", () => {
+    const blob = '{"workdir":"/private/tmp/claude-501/scratch","cmd":"ls","type":"tool_use"}';
+    expect(sanitizeReflectionText(blob)).toBe("");
+  });
+
+  it("rejects a truncated/invalid JSON payload that is clearly key:value", () => {
+    expect(sanitizeReflectionText('{"workdir":"/private/tmp/abc')).toBe("");
+  });
+
+  it("strips inline tool_use json and keeps the surrounding prose", () => {
+    const raw = 'リスクを確認します。{"type":"tool_use","name":"bash"} 接続上限が懸念です。';
+    const out = sanitizeReflectionText(raw);
+    expect(out).toContain("リスクを確認します");
+    expect(out).toContain("接続上限が懸念です");
+    expect(out).not.toContain("tool_use");
+  });
+
+  it("strips the real codex blob shape (type not first) inline in prose", () => {
+    const raw = '接続上限が懸念です。{"workdir":"/private/tmp/x","cmd":"ls","type":"tool_use"} 再接続戦略が必要です。';
+    const out = sanitizeReflectionText(raw);
+    expect(out).toContain("接続上限が懸念です");
+    expect(out).toContain("再接続戦略が必要です");
+    expect(out).not.toContain("workdir");
+    expect(out).not.toContain("tool_use");
+  });
+
+  it("drops bracket-only and [stdout]/[reasoning] noise lines", () => {
+    const raw = "[reasoning] thinking...\n{\n}\n実UIのE2Eを追加すべきです。\n[stdout] done";
+    const out = sanitizeReflectionText(raw);
+    expect(out).toBe("実UIのE2Eを追加すべきです。");
+  });
+
+  it("unwraps a fully-quoted string", () => {
+    expect(sanitizeReflectionText('"端的に述べると、再接続戦略が必要です。"')).toBe("端的に述べると、再接続戦略が必要です。");
+  });
+
+  it("returns empty for empty/whitespace input", () => {
+    expect(sanitizeReflectionText("")).toBe("");
+    expect(sanitizeReflectionText("   \n  ")).toBe("");
+    expect(sanitizeReflectionText(null)).toBe("");
+  });
+
+  it("caps length code-point-safely (emoji not split)", () => {
+    const out = sanitizeReflectionText("🚀".repeat(400), 10);
+    expect([...out].length).toBe(10); // 9 emoji + ellipsis
+    expect(out.endsWith("…")).toBe(true);
+    expect(out.includes("�")).toBe(false);
   });
 });
 
@@ -153,5 +210,18 @@ describe("runSubordinateReflection", () => {
     addAgent(db, { id: "dev-jr", dept: "dev", role: "senior", status: "idle" });
     const { runSubordinateReflection } = makeRunner(null);
     expect(await runSubordinateReflection(baseReq)).toBeNull();
+  });
+
+  it("returns null when the run is raw tool/JSON output (no fake line injected)", async () => {
+    addAgent(db, { id: "dev-jr", dept: "dev", role: "senior", status: "idle" });
+    const { runSubordinateReflection } = makeRunner('{"workdir":"/tmp/x","type":"tool_use"}');
+    expect(await runSubordinateReflection(baseReq)).toBeNull();
+  });
+
+  it("sanitizes surrounding noise but keeps the real take", async () => {
+    addAgent(db, { id: "dev-jr", dept: "dev", role: "senior", status: "idle" });
+    const { runSubordinateReflection } = makeRunner('[reasoning] hmm\n再接続戦略の検証が必要です。');
+    const result = await runSubordinateReflection(baseReq);
+    expect(result?.text).toBe("再接続戦略の検証が必要です。");
   });
 });
