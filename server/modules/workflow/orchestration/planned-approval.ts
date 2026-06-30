@@ -1,3 +1,5 @@
+import { MEETING_MAX_SEATS } from "./meetings/meeting-config.ts";
+
 type CreatePlannedApprovalToolsDeps = {
   reviewInFlight: Set<string>;
   reviewRoundState: Map<string, number>;
@@ -94,7 +96,9 @@ export function createPlannedApprovalTools(deps: CreatePlannedApprovalToolsDeps)
         const planningLeader = leaders.find((l: any) => l.department_id === "planning") ?? leaders[0];
         const otherLeaders = leaders.filter((l: any) => l.id !== planningLeader.id);
         let hasSupplementSignals = false;
-        const seatIndexByAgent = new Map(leaders.slice(0, 6).map((leader: any, idx: number) => [leader.id, idx]));
+        const seatIndexByAgent = new Map(
+          leaders.slice(0, MEETING_MAX_SEATS).map((leader: any, idx: number) => [leader.id, idx]),
+        );
 
         const taskCtx = db
           .prepare("SELECT description, project_path, workflow_pack_key FROM tasks WHERE id = ?")

@@ -17,6 +17,7 @@ import {
 } from "./drawing-core";
 import { drawChair, drawPlant } from "./drawing-furniture-a";
 import { formatPeopleCount, formatTaskCount } from "./drawing-furniture-b";
+import { computeMeetingSeats } from "./meeting-seats";
 
 interface BuildCeoAndHallwayParams {
   app: Application;
@@ -139,17 +140,21 @@ export function buildCeoAndHallway({
   ceoLayer.addChild(ceoPlateText);
   drawChair(ceoLayer, cdx + 32, cdy + 46, 0xd4a860);
 
-  const mtW = 220;
   const mtH = 28;
-  const mtX = Math.floor((OFFICE_W - mtW) / 2);
-  const mtY = 48;
+  // Seats scale to the meeting cap (server MEETING_MAX_SEATS) and stay within the
+  // office width. For the original 3-column case this resolves to the same 220px
+  // table and seat coordinates as before.
+  const seatLayout = computeMeetingSeats({ officeW: OFFICE_W, tableY: 48, tableH: mtH });
+  const mtX = seatLayout.table.x;
+  const mtY = seatLayout.table.y;
+  const mtW = seatLayout.table.w;
   const mt = new Graphics();
   const tableEdge = isDark ? 0x2a2018 : 0xb89060;
   const tableTop = isDark ? 0x382818 : 0xd0a878;
   const tableInlay = isDark ? 0x4a3828 : 0xf7e4c0;
   mt.roundRect(mtX, mtY, mtW, mtH, 12).fill(tableEdge);
   mt.roundRect(mtX + 3, mtY + 3, mtW - 6, mtH - 6, 10).fill(tableTop);
-  mt.roundRect(mtX + 64, mtY + 8, 92, 12, 5).fill({ color: tableInlay, alpha: isDark ? 0.3 : 0.45 });
+  mt.roundRect(mtX + mtW / 2 - 46, mtY + 8, 92, 12, 5).fill({ color: tableInlay, alpha: isDark ? 0.3 : 0.45 });
   if (activeMeetingTaskId && onOpenActiveMeetingMinutes) {
     mt.eventMode = "static";
     mt.cursor = "pointer";
@@ -160,10 +165,8 @@ export function buildCeoAndHallway({
   }
   ceoLayer.addChild(mt);
 
-  const meetingSeatX = [mtX + 40, mtX + 110, mtX + 180];
-  for (const sx of meetingSeatX) {
-    drawChair(ceoLayer, sx, mtY - 4, 0xc4a070);
-    drawChair(ceoLayer, sx, mtY + mtH + 10, 0xc4a070);
+  for (const chair of seatLayout.chairs) {
+    drawChair(ceoLayer, chair.x, chair.y, 0xc4a070);
   }
 
   const meetingLabel = new Text({
@@ -180,14 +183,7 @@ export function buildCeoAndHallway({
   meetingLabel.position.set(mtX + mtW / 2, mtY + mtH / 2);
   ceoLayer.addChild(meetingLabel);
 
-  ceoMeetingSeatsRef.current = [
-    { x: meetingSeatX[0], y: mtY + 2 },
-    { x: meetingSeatX[1], y: mtY + 2 },
-    { x: meetingSeatX[2], y: mtY + 2 },
-    { x: meetingSeatX[0], y: mtY + mtH + 20 },
-    { x: meetingSeatX[1], y: mtY + mtH + 20 },
-    { x: meetingSeatX[2], y: mtY + mtH + 20 },
-  ];
+  ceoMeetingSeatsRef.current = seatLayout.seats;
 
   deliveriesRef.current = deliveriesRef.current.filter((delivery) => !delivery.sprite.destroyed);
   for (const delivery of deliveriesRef.current) {

@@ -1,5 +1,6 @@
 import type { Lang } from "../../../../types/lang.ts";
 import { processReviewConsensusOutcome } from "./review-consensus-outcome.ts";
+import { MEETING_MAX_SEATS } from "./meeting-config.ts";
 
 type ReviewConsensusDeps = any;
 
@@ -129,7 +130,9 @@ export function createReviewConsensusTools(deps: ReviewConsensusDeps) {
         const otherLeaders = leaders.filter((l: any) => l.id !== planningLeader.id);
         let needsRevision = false;
         let reviseOwner: any = null;
-        const seatIndexByAgent = new Map(leaders.slice(0, 6).map((leader: any, idx: number) => [leader.id, idx]));
+        const seatIndexByAgent = new Map(
+          leaders.slice(0, MEETING_MAX_SEATS).map((leader: any, idx: number) => [leader.id, idx]),
+        );
 
         const taskCtx = db
           .prepare("SELECT description, project_path, workflow_pack_key FROM tasks WHERE id = ?")

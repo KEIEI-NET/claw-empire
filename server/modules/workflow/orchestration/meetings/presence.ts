@@ -1,4 +1,5 @@
 import type { Lang } from "../../../../types/lang.ts";
+import { MEETING_MAX_SEATS } from "./meeting-config.ts";
 
 interface AgentRow {
   id: string;
@@ -90,7 +91,7 @@ export function createMeetingPresenceTools(deps: PresenceDeps) {
   }
 
   function callLeadersToCeoOffice(taskId: string, leaders: AgentRow[], phase: "kickoff" | "review"): void {
-    leaders.slice(0, 6).forEach((leader, seatIndex) => {
+    leaders.slice(0, MEETING_MAX_SEATS).forEach((leader, seatIndex) => {
       markAgentInMeeting(leader.id, 600_000, seatIndex, phase, taskId);
       broadcast("ceo_office_call", {
         from_agent_id: leader.id,
@@ -104,7 +105,7 @@ export function createMeetingPresenceTools(deps: PresenceDeps) {
   }
 
   function dismissLeadersFromCeoOffice(taskId: string, leaders: AgentRow[]): void {
-    leaders.slice(0, 6).forEach((leader) => {
+    leaders.slice(0, MEETING_MAX_SEATS).forEach((leader) => {
       meetingPresenceUntil.delete(leader.id);
       meetingSeatIndexByAgent.delete(leader.id);
       meetingPhaseByAgent.delete(leader.id);
