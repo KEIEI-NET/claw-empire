@@ -8,7 +8,17 @@ import ReportHistory from "../components/ReportHistory";
 import AgentStatusPanel from "../components/AgentStatusPanel";
 import OfficeRoomManager from "../components/OfficeRoomManager";
 import type { DecisionInboxItem } from "../components/chat/decision-inbox";
-import type { Agent, Department, Message, RoomTheme, SubAgent, SubTask, Task, WorkflowPackKey } from "../types";
+import type {
+  Agent,
+  Department,
+  Message,
+  RoomTheme,
+  SubAgent,
+  SubTask,
+  Task,
+  WorkflowPackKey,
+  WSEventType,
+} from "../types";
 import type { UiLanguage } from "../i18n";
 import type { ProjectMetaPayload, RoomThemeMap, TaskPanelTab } from "./types";
 
@@ -17,6 +27,7 @@ interface AppOverlaysProps {
   chatAgent: Agent | null;
   messages: Message[];
   agents: Agent[];
+  on?: (event: WSEventType, handler: (payload: unknown) => void) => () => void;
   streamingMessage: {
     message_id: string;
     agent_id: string;
@@ -80,6 +91,7 @@ export default function AppOverlays({
   chatAgent,
   messages,
   agents,
+  on,
   streamingMessage,
   onSendMessage,
   onSendAnnouncement,
@@ -182,6 +194,7 @@ export default function AppOverlays({
           )}
           agents={agents}
           onClose={onCloseTaskPanel}
+          on={on}
         />
       )}
 

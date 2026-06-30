@@ -1,4 +1,4 @@
-import type { Agent, Task } from "../../types";
+import type { Agent, Task, WSEventType } from "../../types";
 import type { LangText } from "../../i18n";
 
 export interface TerminalPanelProps {
@@ -8,6 +8,8 @@ export interface TerminalPanelProps {
   agents: Agent[];
   initialTab?: "terminal" | "minutes";
   onClose: () => void;
+  /** WS subscribe fn from the app socket, for Phase 10 opt-in live minutes. */
+  on?: (event: WSEventType, handler: (payload: unknown) => void) => () => void;
 }
 
 export const STATUS_BADGES: Record<string, { label: LangText; color: string }> = {

@@ -322,6 +322,9 @@ export type WSEventType =
   | "ceo_office_call"
   | "chat_stream"
   | "task_report"
+  | "meeting_started"
+  | "meeting_minute_live"
+  | "meeting_finished"
   | "connected";
 
 export interface WSEvent {

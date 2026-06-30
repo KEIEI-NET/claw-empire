@@ -470,6 +470,7 @@ export default function App() {
         chatAgent={chatAgent}
         messages={messages}
         agents={overlayAgents}
+        on={on}
         streamingMessage={streamingMessage}
         onSendMessage={actions.handleSendMessage}
         onSendAnnouncement={actions.handleSendAnnouncement}

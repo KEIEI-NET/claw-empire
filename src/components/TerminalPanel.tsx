@@ -12,6 +12,13 @@ import {
   type TaskLogEntry,
   type TerminalPanelProps,
 } from "./terminal-panel/model";
+import {
+  appendLiveMinute,
+  dropMeetingFromLive,
+  groupLiveByMeeting,
+  type LiveMinuteEntry,
+  type LiveMinuteEvent,
+} from "./terminal-panel/live-minutes";
 
 export default function TerminalPanel({
   taskId,
@@ -20,11 +27,14 @@ export default function TerminalPanel({
   agents,
   initialTab = "terminal",
   onClose,
+  on,
 }: TerminalPanelProps) {
   const [text, setText] = useState("");
   const [taskLogs, setTaskLogs] = useState<TaskLogEntry[]>([]);
   const [progressHints, setProgressHints] = useState<TerminalProgressHintsPayload | null>(null);
   const [meetingMinutes, setMeetingMinutes] = useState<MeetingMinute[]>([]);
+  const [liveEnabled, setLiveEnabled] = useState(false);
+  const [liveFeed, setLiveFeed] = useState<LiveMinuteEntry[]>([]);
   const [logPath, setLogPath] = useState("");
   const [follow, setFollow] = useState(true);
   const [activeTab, setActiveTab] = useState<"terminal" | "minutes">(initialTab);
@@ -130,6 +140,46 @@ export default function TerminalPanel({
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [activeTab, fetchTerminal, fetchMeetingMinutes]);
+
+  // Phase 10: reset the live feed whenever the panel switches tasks.
+  useEffect(() => {
+    setLiveFeed([]);
+  }, [taskId]);
+
+  // Phase 10: a finished meeting must always leave the live feed and hand off to
+  // the polled API — even if the user disabled live mid-meeting. Subscribing
+  // unconditionally (independent of the toggle) prevents a stale "in progress"
+  // card from lingering after the meeting completed off-screen.
+  useEffect(() => {
+    if (!on) return;
+    const offFinished = on("meeting_finished", (payload: unknown) => {
+      const p = payload as { task_id?: string | null; meeting_id?: string };
+      if (p.task_id !== taskId || !p.meeting_id) return;
+      const meetingId = p.meeting_id;
+      setLiveFeed((feed) => dropMeetingFromLive(feed, meetingId));
+      void fetchMeetingMinutes();
+    });
+    return () => offFinished();
+  }, [on, taskId, fetchMeetingMinutes]);
+
+  // Stream full entries only while the toggle is on.
+  useEffect(() => {
+    if (!on || !liveEnabled) return;
+    const offLive = on("meeting_minute_live", (payload: unknown) => {
+      setLiveFeed((feed) => appendLiveMinute(feed, payload as LiveMinuteEvent, taskId));
+    });
+    return () => offLive();
+  }, [on, liveEnabled, taskId]);
+
+  const liveGroups = useMemo(() => groupLiveByMeeting(liveFeed), [liveFeed]);
+  const liveMeetingIds = useMemo(() => new Set(liveGroups.map((g) => g.meetingId)), [liveGroups]);
+  // Hide the polled copy of any meeting currently streaming live, so a meeting
+  // never renders twice (live + stale-from-poll). On finish it leaves the live
+  // feed and reappears from the API.
+  const visibleMinutes = useMemo(
+    () => (liveEnabled ? meetingMinutes.filter((m) => !liveMeetingIds.has(m.id)) : meetingMinutes),
+    [liveEnabled, meetingMinutes, liveMeetingIds],
+  );
 
   // Close on Escape key
   useEffect(() => {
@@ -700,7 +750,68 @@ export default function TerminalPanel({
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {meetingMinutes.length === 0 ? (
+          {on && (
+            <div className="flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setLiveEnabled((v) => !v)}
+                aria-pressed={liveEnabled}
+                className="rounded-full border px-3 py-1 text-[11px] font-medium transition-colors"
+                style={{
+                  borderColor: liveEnabled ? "#ef4444" : "var(--th-border)",
+                  color: liveEnabled ? "#fca5a5" : "var(--th-text-muted)",
+                  background: liveEnabled ? "rgba(239,68,68,0.12)" : "transparent",
+                }}
+              >
+                {liveEnabled
+                  ? tr("🔴 라이브 중", "🔴 Live", "🔴 ライブ中", "🔴 直播中")
+                  : tr("⚪ 라이브 추적", "⚪ Go live", "⚪ ライブ追跡", "⚪ 实时跟踪")}
+              </button>
+            </div>
+          )}
+          {liveEnabled &&
+            liveGroups.map((group) => (
+              <div
+                key={`live-${group.meetingId}`}
+                className="rounded-xl border p-3"
+                style={{ borderColor: "rgba(239,68,68,0.45)", background: "rgba(239,68,68,0.06)" }}
+              >
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <span className="rounded bg-red-900/50 px-2 py-0.5 text-[10px] text-red-200">
+                    {tr("🔴 진행 중", "🔴 In progress", "🔴 進行中", "🔴 进行中")}
+                  </span>
+                  <span className="ml-auto text-[10px]" style={{ color: "var(--th-text-muted)" }}>
+                    {tr("실시간", "live", "リアルタイム", "实时")}
+                  </span>
+                </div>
+                <div className="space-y-1.5">
+                  {group.entries.map((entry) => (
+                    <div
+                      key={`${group.meetingId}-${entry.seq}`}
+                      className="rounded-md border px-2 py-1.5"
+                      style={{ borderColor: "var(--th-border)", background: "var(--th-panel-bg)" }}
+                    >
+                      <div
+                        className="mb-0.5 flex items-center gap-2 text-[10px]"
+                        style={{ color: "var(--th-text-secondary)" }}
+                      >
+                        <span>#{entry.seq}</span>
+                        <span className="text-cyan-300">{entry.speaker_name}</span>
+                        {entry.department_name && <span>{entry.department_name}</span>}
+                        {entry.role_label && <span>· {entry.role_label}</span>}
+                      </div>
+                      <div
+                        className="text-xs leading-relaxed whitespace-pre-wrap break-words"
+                        style={{ color: "var(--th-text-primary)" }}
+                      >
+                        {entry.content}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          {visibleMinutes.length === 0 && !(liveEnabled && liveGroups.length > 0) ? (
             <div className="flex h-full flex-col items-center justify-center" style={{ color: "var(--th-text-muted)" }}>
               <div className="text-3xl mb-3">📝</div>
               <div className="text-sm">
@@ -708,7 +819,7 @@ export default function TerminalPanel({
               </div>
             </div>
           ) : (
-            meetingMinutes.map((meeting) => (
+            visibleMinutes.map((meeting) => (
               <div
                 key={meeting.id}
                 className="rounded-xl border p-3"

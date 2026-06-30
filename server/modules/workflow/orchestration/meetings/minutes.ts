@@ -72,6 +72,18 @@ export function createMeetingMinutesTools(deps: MeetingMinutesDeps) {
     VALUES (?, ?, ?, ?, ?, 'in_progress', ?, ?)
   `,
     ).run(meetingId, taskId, meetingType, round, title, t, t);
+    // Phase 10: announce meeting start on the live channel. The TerminalPanel feed
+    // builds itself from streamed entries, so it has no handler for this today;
+    // the event is kept for standalone subscribers that want to surface a meeting
+    // the moment it opens, before its first entry streams in.
+    broadcast("meeting_started", {
+      task_id: taskId,
+      meeting_id: meetingId,
+      meeting_type: meetingType,
+      round,
+      title,
+      started_at: t,
+    });
     return meetingId;
   }
 
@@ -86,27 +98,50 @@ export function createMeetingMinutesTools(deps: MeetingMinutesDeps) {
   ): void {
     const deptName = getDeptName(agent.department_id ?? "", workflowPackKey);
     const roleLabel = getRoleLabel(agent.role, lang as Lang);
+    const speakerName = getAgentDisplayName(agent, lang);
+    const createdAt = nowMs();
     db.prepare(
       `
     INSERT INTO meeting_minute_entries
       (meeting_id, seq, speaker_agent_id, speaker_name, department_name, role_label, message_type, content, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
-    ).run(
-      meetingId,
+    ).run(meetingId, seq, agent.id, speakerName, deptName || null, roleLabel || null, messageType, content, createdAt);
+    // Phase 10: stream the full entry to opt-in live subscribers. This is the
+    // single chokepoint for every meeting type (planned / review / reflection).
+    const taskRow = db.prepare("SELECT task_id FROM meeting_minutes WHERE id = ?").get(meetingId) as
+      | { task_id?: string }
+      | undefined;
+    broadcast("meeting_minute_live", {
+      task_id: taskRow?.task_id ?? null,
+      meeting_id: meetingId,
       seq,
-      agent.id,
-      getAgentDisplayName(agent, lang),
-      deptName || null,
-      roleLabel || null,
-      messageType,
+      speaker_agent_id: agent.id,
+      speaker_name: speakerName,
+      department_name: deptName || null,
+      role_label: roleLabel || null,
+      message_type: messageType,
       content,
-      nowMs(),
-    );
+      created_at: createdAt,
+    });
   }
 
   function finishMeetingMinutes(meetingId: string, status: "completed" | "revision_requested" | "failed"): void {
-    db.prepare("UPDATE meeting_minutes SET status = ?, completed_at = ? WHERE id = ?").run(status, nowMs(), meetingId);
+    const completedAt = nowMs();
+    db.prepare("UPDATE meeting_minutes SET status = ?, completed_at = ? WHERE id = ?").run(
+      status,
+      completedAt,
+      meetingId,
+    );
+    const taskRow = db.prepare("SELECT task_id FROM meeting_minutes WHERE id = ?").get(meetingId) as
+      | { task_id?: string }
+      | undefined;
+    broadcast("meeting_finished", {
+      task_id: taskRow?.task_id ?? null,
+      meeting_id: meetingId,
+      status,
+      completed_at: completedAt,
+    });
   }
 
   function normalizeRevisionMemoNote(note: string): string {
