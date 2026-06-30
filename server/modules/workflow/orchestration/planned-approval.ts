@@ -1,4 +1,5 @@
 import { MEETING_MAX_SEATS } from "./meetings/meeting-config.ts";
+import { createSubordinateReflectionRunner } from "./meetings/subordinate-reflection.ts";
 
 type CreatePlannedApprovalToolsDeps = {
   reviewInFlight: Set<string>;
@@ -68,6 +69,15 @@ export function createPlannedApprovalTools(deps: CreatePlannedApprovalToolsDeps)
     appendTaskLog,
     reviewMeetingOneShotTimeoutMs,
   } = deps;
+
+  // Phase 9 (Model A): subordinates add an on-the-ground reality check after their
+  // leader's action item. Reuses the meeting's existing deps; no CLI child task.
+  const { runSubordinateReflection } = createSubordinateReflectionRunner({
+    db,
+    buildMeetingPrompt,
+    runAgentOneShot,
+    getAgentDisplayName,
+  });
 
   function startPlannedApprovalMeeting(
     taskId: string,
@@ -299,6 +309,42 @@ export function createPlannedApprovalTools(deps: CreatePlannedApprovalToolsDeps)
           }
           await sleepMs(randomDelay(420, 840));
           if (abortIfInactive()) return;
+
+          // The leader delegates down: their specialist adds a ground-level take,
+          // which lands in the minutes and transcript so the consensus reflects it.
+          const reflection = await runSubordinateReflection({
+            leader,
+            leaderStatement: actionText,
+            taskTitle,
+            taskDescription,
+            workflowPackKey: taskWorkflowPackKey,
+            round,
+            lang,
+            projectPath,
+            timeoutMs: oneShotTimeoutMs,
+          });
+          if (abortIfInactive()) return;
+          if (reflection) {
+            const seatIndex = seatIndexByAgent.get(leader.id) ?? 0;
+            emitMeetingSpeech(reflection.subordinate.id, seatIndex, "kickoff", taskId, reflection.text, lang);
+            pushTranscript(reflection.subordinate, reflection.text);
+            if (meetingId) {
+              appendMeetingMinuteEntry(
+                meetingId,
+                minuteSeq++,
+                reflection.subordinate,
+                lang,
+                "chat",
+                reflection.text,
+                taskWorkflowPackKey,
+              );
+            }
+            if (wantsRevision(reflection.text)) {
+              hasSupplementSignals = true;
+            }
+            await sleepMs(randomDelay(360, 720));
+            if (abortIfInactive()) return;
+          }
         }
 
         await sleepMs(randomDelay(520, 900));

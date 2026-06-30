@@ -5,6 +5,7 @@ import {
 } from "../../../messenger/token-crypto.ts";
 import { syncOfficePackAgentsForPack } from "../collab/office-pack-agent-hydration.ts";
 import { invalidatePersonaInjectionCache } from "../../workflow/core/persona-prompt.ts";
+import { invalidateMeetingReflectionCache } from "../../workflow/orchestration/meetings/subordinate-reflection.ts";
 
 const MESSENGER_SETTINGS_KEY = "messengerChannels";
 const OFFICE_PACK_PROFILES_KEY = "officePackProfiles";
@@ -159,6 +160,9 @@ export function registerOpsSettingsStatsRoutes(ctx: RuntimeContext): void {
       }
       if ("personaInjectionEnabled" in (body as Record<string, unknown>)) {
         invalidatePersonaInjectionCache();
+      }
+      if ("meetingDelegateReflectionEnabled" in (body as Record<string, unknown>)) {
+        invalidateMeetingReflectionCache();
       }
       if (selectedOfficePackInPayload !== undefined) {
         maybeHydratePackOnFirstSelection(selectedOfficePackInPayload, officePackProfilesInPayload);
